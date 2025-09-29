@@ -11,6 +11,7 @@ from reportlab.pdfgen import canvas
 
 # ===== Konfigurasi via ENV (untuk hosting) =====
 APP_DB = os.getenv("FINANCE_DB_PATH", os.path.join(os.path.dirname(__file__), "finance.db"))
+os.makedirs(os.path.dirname(APP_DB), exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "change-this-in-production")
