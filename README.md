@@ -1,183 +1,198 @@
-# Temanku — Personal Finance Web App
+Temanku — Personal Finance Web App
 
-Aplikasi web pencatatan keuangan pribadi: catat pemasukan/pengeluaran, kelola kategori & budget, lihat statistik, serta **import/export** data. Desain **minimalis–modern**, responsif.
+Aplikasi web pencatatan keuangan pribadi: catat pemasukan/pengeluaran, kategori & budget, lihat statistik, ekspor laporan ke PDF/Excel, dan impor data. Tampilan minimalis-modern, responsif, dan mendukung dark mode.
 
----
+✨ Fitur Utama
 
-## ✨ Fitur
+🔐 Multi-user + login
 
-- 🔐 Multi-user + login (Flask-Login)  
-- ➕ CRUD transaksi (income/expense), keterangan & metode pembayaran (tunai / e-wallet / transfer)  
-- 🏷️ Kategori pemasukan & pengeluaran  
-- 💰 Budget per kategori + progress bar  
-- 📊 Dashboard: ringkasan periode & grafik pengeluaran per kategori  
-- ⬇️ Export laporan ke **Excel** & **PDF**  
-- ⬆️ Import dari **CSV/Excel** (menu **Import/Export**)  
-- 🌙 Dark mode toggle  
-- 📱 UI mobile dengan off-canvas menu & gaya glass
+➕ CRUD transaksi (income/expense), keterangan & metode pembayaran (tunai / e-wallet / transfer)
 
----
+🏷️ Kategori pemasukan & pengeluaran
 
-## 🧰 Teknologi
+📊 Dashboard: ringkasan periode & grafik pengeluaran per kategori
 
-- **Backend:** Flask (Python 3.11), Flask-Login  
-- **Database:** SQLite (persisten)  
-- **Frontend:** Bootstrap 5.3, Jinja2, Chart.js, Google Font (Montserrat)  
-- **Laporan & impor:** pandas, openpyxl, ReportLab  
-- **Optimasi:** Flask-Compress (gzip), SQLite WAL mode
+💰 Budget per kategori + progress bar
 
----
+⬇️ Export laporan ke PDF & Excel
 
-## 📁 Struktur Direktori Singkat
+⬆️ Import dari CSV/Excel (menu Import/Export)
 
-```text
-.
-├─ app.py
-├─ requirements.txt
-├─ schema.sql
-├─ templates/
-│  ├─ base.html
-│  ├─ dashboard.html
-│  ├─ history.html
-│  ├─ categories.html
-│  ├─ budgets.html
-│  └─ import_export.html
-└─ static/
-   ├─ style.css
-   └─ app.js
-```
----
+🌙 Dark mode (toggle)
 
-## 🚀 Menjalankan di Lokal
+📱 UI mobile dengan offcanvas menu & desain glassy
 
-### 0) Prasyarat
-- **Python 3.11** (disarankan)
-- Git (opsional, untuk clone)
-- (Windows) Microsoft C++ Build Tools kadang diperlukan untuk beberapa paket
+🧰 Teknologi
 
-### 1) Clone repo
-```bash
+Backend: Flask (Python 3.11), Flask-Login
+
+DB: SQLite (persisten)
+
+Frontend: Bootstrap 5.3, Jinja2, Chart.js, Google Font (Montserrat)
+
+Laporan/Impor: pandas, openpyxl, ReportLab
+
+Optimasi: Flask-Compress (gzip), WAL mode (SQLite)
+
+📁 Struktur Folder Singkat
+app.py
+requirements.txt
+templates/
+  base.html
+  dashboard.html
+  history.html
+  categories.html
+  budgets.html
+  import_export.html
+static/
+  style.css
+  app.js
+
+🚀 Cara Menjalankan di Lokal
+0) Prasyarat
+
+Python 3.11 (disarankan)
+
+Git (opsional, untuk clone)
+
+(Windows) Microsoft C++ Build Tools terkadang dibutuhkan saat install paket tertentu
+
+1) Clone & masuk folder
 git clone https://github.com/<username>/<repo>.git
 cd <repo>
-```
 
-### 2) Buat & aktifkan virtual environment
+2) Buat virtual env & aktifkan
 
-- Windows (PowerShell)
-```
+Windows (PowerShell)
+
 python -m venv .venv
-. .venv\Scripts\Activate.ps1
-```
-- macOS / Linux
-```
+.venv\Scripts\Activate.ps1
+
+
+macOS / Linux
+
 python3 -m venv .venv
 source .venv/bin/activate
-```
-### 3) Install dependencies
- ```
-  pip install -r requirements.txt
-```
-  Jika perlu:
-```
-  pip install openpyxl reportlab
-```
-### 4) (Opsional) File .env
 
-  Buat file .env di root (atau set dari shell):
-```
-  SECRET_KEY=ubah-ke-string-acak
-  FINANCE_DB_PATH=finance.db
-```
-### 5) Jalankan aplikasi
+3) Install dependencies
+pip install -r requirements.txt
 
-#### Opsi A – Flask
 
-##### Windows
-```set FLASK_APP=app.py & flask run```
-##### macOS/Linux
-```export FLASK_APP=app.py && flask run```
+Jika gagal saat export Excel/PDF:
 
-#### Opsi B – Python
+Excel: pip install openpyxl
 
-```python app.py```
+PDF: pip install reportlab
 
-Buka: http://127.0.0.1:5000
+4) (Opsional) Buat file .env lokal
 
-Daftar akun di /register, lalu login.
+Buat file .env (tidak wajib; variabel juga bisa di-setup dari shell):
 
----
+SECRET_KEY=ubah-ke-string-acak
+FINANCE_DB_PATH=finance.db
 
-## 🔁 Import & Export
+
+Default DB akan dibuat otomatis. Untuk lokasi persisten lain, isi FINANCE_DB_PATH sesuai keinginan (mis. instance/finance.db).
+
+5) Jalankan aplikasi
+
+Opsi A — Flask
+
+set FLASK_APP=app.py & flask run          # Windows
+# atau
+export FLASK_APP=app.py && flask run      # macOS/Linux
+
+
+Opsi B — Python langsung
+
+python app.py
+
+
+Buka browser: http://127.0.0.1:5000
+
+Daftar user pertama di /register, lalu login.
+
+📦 Import & Export Data
 
 Buka menu 🔁 Import/Export.
 
-Export: pilih rentang tanggal → Export Excel / Export PDF.
+Export: pilih rentang tanggal → Export Excel atau Export PDF.
 
-Import: unggah CSV/Excel (format kolom mengikuti hasil export Excel aplikasi ini).
+Import: unggah file CSV/Excel (format kolom mengikuti export Excel aplikasi ini).
 
----
+☁️ Deploy (ringkas)
 
-##  ☁️ Deploy Singkat (Azure App Service)
+Azure App Service (Linux F1) untuk testing:
 
-1. Buat Web App Linux (F1 untuk testing).
+SECRET_KEY dan FINANCE_DB_PATH=/home/data/finance.db di Environment variables
 
-2. Set Configuration → Application settings:
+Startup command:
 
-  - ```SECRET_KEY = string acak```
+gunicorn --bind=0.0.0.0:8000 app:app
 
-  - ```FINANCE_DB_PATH = /home/data/finance.db``` (lokasi persisten)
 
-3. Gunakan GitHub Actions (Deployment Center) untuk auto-deploy.
+Gunakan GitHub Actions untuk deploy.
 
-4. Startup command (jika perlu):
+Catatan: F1 tidak mendukung custom domain. Untuk custom domain + SSL gratis, scale ke B1.
 
-  ```gunicorn --bind=0.0.0.0:8000 app:app```
-  
-Catatan: F1 punya cold start & tidak mendukung custom domain. Untuk custom domain, scale ke B1.
+🛠️ Troubleshooting
 
----
+1) “ModuleNotFoundError: openpyxl / reportlab”
+→ pip install openpyxl reportlab
 
-##  🧪 Troubleshooting
+2) “database is locked” (SQLite)
 
-```ModuleNotFoundError: openpyxl/reportlab```
-Jalankan: 
-```pip install openpyxl reportlab.```
+Pastikan koneksi DB set WAL mode & busy timeout. Di db():
 
-```database is locked``` (SQLite)
-Aktifkan opsi saat membuat koneksi:
-```
 conn.execute("PRAGMA busy_timeout = 5000")
 conn.execute("PRAGMA journal_mode=WAL")
 conn.execute("PRAGMA synchronous=NORMAL")
-```
-
-Grafik tidak muncul
-Cek ada data pada periode, Chart.js ter-load, dan elemen:
-```<canvas id="expenseChart">``` 
-Di CSS, pastikan wrapper grafik memiliki tinggi ```(mis. .chart-box{height:360px})``` dan set Chart.js ```Chart maintainAspectRatio:false.```
-
----
-
-##  🗺️ Roadmap Singkat
-
-• FAB + search/filter riwayat + warna/ikon kategori
-
-• Tren 12 bulan + alert budget
-
-• PWA + recurring transactions
-
-• Import wizard (mapping bebas) + attachment struk
-
-• Backup otomatis + onboarding mini
-
----
-
-##  🤝 Kontribusi
-
-PR & issue dipersilakan.
-Untuk perubahan UI, sertakan screenshot sebelum/sesudah.
-Jika mengubah skema DB, sertakan migrasi idempotent.
 
 
+Tutup app lain yang mengunci file DB.
 
+3) Export Excel/PDF gagal
 
+Pastikan paket terpasang: openpyxl (Excel), reportlab (PDF).
+
+4) Grafik kosong
+
+Pastikan ada data pada periode dipilih.
+
+Pastikan Chart.js dimuat (CDN) & elemen <canvas id="expenseChart"> ada.
+
+Pastikan wrapper .chart-box{height:360px} dan opsi Chart: maintainAspectRatio:false.
+
+5) UI mobile (burger) tidak bisa diklik / menutup sendiri
+
+Pastikan memakai Bootstrap bundle (bukan JS non-bundle).
+
+Jangan panggil Offcanvas.toggle() manual—biarkan data-API Bootstrap yang handle.
+
+🔐 Environment Variables
+
+SECRET_KEY — string acak untuk session Flask (wajib di production)
+
+FINANCE_DB_PATH — path SQLite (contoh: finance.db atau /home/data/finance.db di Azure)
+
+🗺️ Roadmap Singkat (opsional)
+
+FAB + search/filter riwayat + warna/ikon kategori
+
+Tren 12 bulan + alert budget
+
+PWA + recurring transactions
+
+Import wizard (mapping bebas) + attachment struk
+
+Backup otomatis + onboarding mini
+
+🤝 Kontribusi
+
+PR & issue dipersilakan. Saat mengajukan perubahan:
+
+Jelaskan perubahan (UI/DB/route) & alasan
+
+Sertakan screenshot sebelum/sesudah untuk perubahan UI
+
+Jika ubah skema DB, sertakan migrasi idempotent

@@ -8,6 +8,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+import datetime as dt
 
 # ===== Konfigurasi via ENV (untuk hosting) =====
 APP_DB = os.getenv("FINANCE_DB_PATH", os.path.join(os.path.dirname(__file__), "finance.db"))
@@ -337,12 +338,71 @@ def history():
             LIMIT ? OFFSET ?
         """, (*params, per, (page-1)*per)).fetchall()
 
-
     pages = (total + per - 1)//per
     return render_template("history.html",
                            rows=[dict(r) for r in rows],
                            categories=[dict(c) for c in cats],
                            q_type=q_type, q_cat=q_cat, page=page, pages=pages, title="Riwayat")
+
+    # daftar kategori untuk dropdown
+    categories = query_db("SELECT id, name FROM categories WHERE user_id=? ORDER BY name", [current_user.id])
+
+    if request.method == "POST":
+        date_str = (request.form.get("date") or "").strip()
+        ttype    = (request.form.get("type") or "").strip()
+        amount_s = (request.form.get("amount") or "").replace(".", "").replace(",", "").strip()
+        method   = (request.form.get("method") or "").strip()
+        note     = (request.form.get("note") or "").strip()
+        cat_id   = request.form.get("category_id") or None
+
+        errors = []
+        # tanggal
+        try:
+            dt.date.fromisoformat(date_str)
+        except Exception:
+            errors.append("Tanggal tidak valid.")
+        # tipe
+        if ttype not in ALLOWED_TYPES:
+            errors.append("Jenis harus expense atau income.")
+        # amount
+        try:
+            amount = int(amount_s)
+            if amount <= 0:
+                errors.append("Nominal harus > 0.")
+        except Exception:
+            errors.append("Nominal tidak valid.")
+        # metode (opsional; hapus cek ini jika metode bebas isi)
+        if method and method not in ALLOWED_METHODS:
+            errors.append("Metode tidak dikenali.")
+        # kategori (validasi hanya jika diisi)
+        if cat_id:
+            exist = query_db("SELECT 1 FROM categories WHERE id=? AND user_id=?", [cat_id, current_user.id], one=True)
+            if not exist:
+                errors.append("Kategori tidak ditemukan.")
+
+        if errors:
+            for e in errors: flash(e, "danger")
+            tx_prefill = dict(tx)
+            tx_prefill.update({
+                "date": date_str, "type": ttype, "amount": amount_s,
+                "method": method, "note": note, "category_id": cat_id
+            })
+            return render_template("transactions_edit.html", tx=tx_prefill, categories=categories)
+
+        # 3) update
+        conn = get_db()
+        conn.execute("""
+            UPDATE transactions
+            SET date=?, type=?, amount=?, method=?, note=?, category_id=?
+            WHERE id=? AND user_id=?
+        """, (date_str, ttype, amount, method, note or None, cat_id, tx_id, current_user.id))
+        conn.commit()
+
+        flash("Transaksi berhasil diperbarui.", "success")
+        return redirect(url_for("history"))
+
+    # GET: tampilkan form prefill
+    return render_template("transactions_edit.html", tx=tx, categories=categories)
 
 # ---- Categories management
 @app.get("/categories")

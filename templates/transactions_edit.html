@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h5 class="mb-3">Edit Transaksi</h5>
+    <form method="post">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Tanggal</label>
+          <input type="date" name="date" value="{{ tx.date }}" class="form-control" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Jenis</label>
+          <select name="type" class="form-select" required>
+            <option value="expense" {{ 'selected' if tx.type=='expense' else '' }}>expense</option>
+            <option value="income"  {{ 'selected' if tx.type=='income'  else '' }}>income</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Kategori</label>
+          <select name="category_id" class="form-select">
+            <option value="">(Tidak ada)</option>
+            {% for c in categories %}
+              <option value="{{ c.id }}" {{ 'selected' if str(tx.category_id)==str(c.id) else '' }}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Metode</label>
+          <select name="method" class="form-select">
+            <option value="">-</option>
+            <option value="Tunai"    {{ 'selected' if tx.method=='Tunai'    else '' }}>Tunai</option>
+            <option value="Transfer" {{ 'selected' if tx.method=='Transfer' else '' }}>Transfer</option>
+            <option value="E-Wallet" {{ 'selected' if tx.method=='E-Wallet' else '' }}>E-Wallet</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Nominal (Rp)</label>
+          <input type="number" min="1" step="1" name="amount" value="{{ tx.amount }}" class="form-control" required>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label">Catatan</label>
+          <input name="note" value="{{ tx.note or '' }}" class="form-control" placeholder="Opsional">
+        </div>
+      </div>
+
+      <div class="mt-4 d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('history') }}">Batal</a>
+        <button class="btn btn-success" type="submit">Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
