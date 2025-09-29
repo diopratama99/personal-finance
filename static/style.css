@@ -98,3 +98,164 @@ html[data-theme="dark"] .form-select{background:rgba(255,255,255,.06)}
 .progress.budget{height:10px;background:rgba(0,0,0,.08);border-radius:10px;overflow:hidden}
 .display-6{font-size:1.6rem}
 
+/* ====== Mobile polish ====== */
+.navbar-brand{ font-weight:800; letter-spacing:.2px }
+.navbar-toggler{ border-color: rgba(255,255,255,.25); }
+.navbar-toggler:focus{ box-shadow:0 0 0 .15rem rgba(255,255,255,.25) }
+.navbar-dark .navbar-toggler-icon{
+  /* hamburger icon warna putih */
+  background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255,255,255,.9)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Scrollable chips untuk aksi cepat di HP */
+.chips-scroll{
+  display:flex; gap:.5rem; overflow-x:auto; padding:.25rem .25rem .5rem;
+  scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
+}
+.chip{
+  flex:0 0 auto; scroll-snap-align:center;
+  border-radius:999px; border:1px solid var(--glass-border, rgba(255,255,255,.35));
+  background:var(--card, rgba(255,255,255,.7));
+  padding:.55rem .9rem; text-decoration:none; color:var(--text,#0b2239);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 22px rgba(12,18,28,.06);
+  white-space:nowrap;
+}
+.chip:active{ transform:translateY(1px) }
+.chip-primary{ background:#fff; border-color:#fff; color:#0b2239; font-weight:600 }
+.chip-primary-outline{ background:transparent; border-color:#fff; color:#fff }
+
+/* Card & form lebih rapat di HP */
+@media (max-width: 576px){
+  .card{ border-radius:16px; }
+  .card .card-body{ padding:1rem; }
+  .btn{ padding:.55rem .9rem; border-radius:14px; }
+
+  /* ringkasan angka agar tidak ‘meledak’ */
+  .display-amount, .summary-amount, .lead{
+    font-size: clamp(1rem, 4.5vw, 1.35rem);
+    line-height:1.25;
+  }
+
+  /* grid filter tanggal */
+  .filter-grid .col-auto, .filter-grid .col{
+    flex: 0 0 100%; max-width:100%;
+  }
+  .filter-grid .btn{ width:100% }
+
+  /* chart tinggi proporsional */
+  .chart-card canvas{ max-height: 340px; }
+}
+
+/* Offcanvas list look nicer */
+.offcanvas.text-bg-dark .list-group-item{
+  border: 0; padding:.75rem 0; color:#e8eef5;
+}
+.offcanvas.text-bg-dark .list-group-item:hover{ color:#fff }
+
+/* Font global */
+body { font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+
+/* Glassy background */
+.bg-layer{
+  position: fixed; inset: 0;
+  background: radial-gradient(1200px 600px at 20% -10%, rgba(255,255,255,.35), transparent 60%),
+              radial-gradient(800px 500px at 120% 10%, rgba(255,255,255,.25), transparent 50%),
+              linear-gradient(180deg, rgba(10,97,60,.07), rgba(10,97,60,0));
+  pointer-events: none;        /* penting: jangan blok klik */
+  z-index: 0;
+}
+
+/* Navbar harus di atas layer dekorasi */
+.navbar { position: sticky; top: 0; z-index: 1100; }
+.navbar .navbar-toggler { position: relative; z-index: 1101; }
+.navbar-dark .navbar-toggler-icon{
+  background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255,255,255,.9)' stroke-width='2' stroke-linecap='round' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+/* Chips (aksi cepat mobile) */
+.chips-scroll{ display:flex; gap:.5rem; overflow-x:auto; padding:.25rem .25rem .5rem; -webkit-overflow-scrolling:touch; }
+.chip{
+  flex:0 0 auto; text-decoration:none; white-space:nowrap;
+  border-radius:999px; border:1px solid rgba(255,255,255,.55);
+  background:rgba(255,255,255,.8); color:#0b2239; padding:.55rem .9rem;
+  backdrop-filter: blur(10px); box-shadow:0 8px 22px rgba(12,18,28,.06);
+}
+.chip-primary{ background:#fff; font-weight:600 }
+.chip-outline{ background:transparent; color:#fff; border-color:#fff }
+
+/* Form filter & chart responsive tanpa perlu .card wrapper */
+@media (max-width: 576px){
+  .filter-grid .col, .filter-grid .col-auto { max-width:100%; flex:0 0 100%; }
+  .filter-grid .btn { width:100%; }
+  .chart-canvas { display:block; width:100%; max-height:340px; }
+  .btn { border-radius:14px; padding:.55rem .9rem; }
+}
+
+.equal-row .card-soft{ height:100%; }
+@media (max-width:576px){ .chart-box{ height:300px; } }
+
+/* hide quick chips everywhere */
+.chips-scroll { display: none !important; }
+
+/* ==== Offcanvas themed – GREEN to match navbar ==== */
+.offcanvas-theme{
+  /* gunakan warna dasar hijau dari variabel --bg */
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--bg) 95%, #fff 5%),
+      color-mix(in srgb, var(--bg) 90%, #000 10%)
+    );
+  /* fallback untuk browser tanpa color-mix */
+  background:
+    linear-gradient(180deg, rgba(15,81,50,.97), rgba(15,81,50,.93));
+  border-right: 1px solid rgba(255,255,255,.18);
+  color:#eaf6ef;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.offcanvas-theme .offcanvas-title{ font-weight:700; letter-spacing:.2px }
+.offcanvas-theme .btn-close{ filter: invert(1) grayscale(100%); opacity:.9 }
+
+/* links */
+.offcanvas-theme .menu-link{
+  background: transparent; color:#eaf6ef; border:0; padding:.85rem 0;
+  border-radius:12px; transition: all .2s ease; display:block;
+}
+.offcanvas-theme .menu-link:hover{
+  color:#fff; transform: translateX(2px);
+}
+.offcanvas-theme .menu-link.active{
+  color:#fff; font-weight:700;
+  background: rgba(255,255,255,.14);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22);
+  border-radius:12px; padding-left:.6rem;
+}
+
+/* buttons */
+.offcanvas-theme .btn-menu-primary{
+  background:#fff; color:var(--bg); border:1px solid #fff;
+  border-radius:14px; padding:.6rem 1rem;
+}
+.offcanvas-theme .btn-menu-outline{
+  background:transparent; color:#fff; border:1px solid rgba(255,255,255,.8);
+  border-radius:14px; padding:.6rem 1rem;
+}
+.offcanvas-theme .btn-menu-warning{
+  background:transparent; color:#ffe08a; border:1px solid rgba(255,224,138,.85);
+  border-radius:14px; padding:.6rem 1rem;
+}
+.offcanvas-theme .btn-menu-primary:hover{ filter:brightness(.98) }
+.offcanvas-theme .btn-menu-outline:hover{ background:rgba(255,255,255,.12) }
+.offcanvas-theme .btn-menu-warning:hover{ background:rgba(255,224,138,.12) }
+
+/* backdrop: sedikit gelap kehijauan supaya konsisten */
+.offcanvas-backdrop{
+  --bs-backdrop-bg: rgba(15,81,50,.85);
+  --bs-backdrop-opacity: .45;
+}
+
+/* ==== Page transition (enter/leave) ==== */
+main{ opacity:0; transform: translateY(8px); }
+main.page-enter{ opacity:1; transform:none; transition:opacity .35s ease, transform .35s ease; }
+body.page-leave main{ opacity:0; transform: translateY(6px); transition:opacity .18s ease, transform .18s ease; }

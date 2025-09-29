@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row g-3">
+  <!-- Export -->
+  <div class="col-lg-6">
+    <div class="card-soft h-100">
+      <h5 class="mb-3">Export Laporan</h5>
+      <form class="row gy-2 gx-2 align-items-end" method="get">
+        <div class="col-auto">
+          <label class="form-label mb-0">Mulai</label>
+          <input type="date" class="form-control" name="start" value="{{ start }}">
+        </div>
+        <div class="col-auto">
+          <label class="form-label mb-0">Selesai</label>
+          <input type="date" class="form-control" name="end" value="{{ end }}">
+        </div>
+        <div class="col-auto">
+          <button class="btn btn-primary">Terapkan</button>
+        </div>
+      </form>
+
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <a class="btn btn-outline-primary"
+           href="{{ url_for('export_excel', start=start, end=end) }}">Export Excel</a>
+        <a class="btn btn-outline-primary"
+           href="{{ url_for('export_pdf', start=start, end=end) }}">Export PDF</a>
+      </div>
+
+      <div class="form-text mt-2">
+        * Rentang tanggal di atas akan dipakai untuk file export.
+      </div>
+    </div>
+  </div>
+
+  <!-- Import -->
+  <div class="col-lg-6">
+    <div class="card-soft h-100">
+      <h5 class="mb-3">Import CSV/Excel</h5>
+      <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data">
+        <div class="input-group">
+          <input class="form-control" type="file" name="file" accept=".csv,.xlsx,.xls" required>
+          <button class="btn btn-outline-primary" type="submit">Upload</button>
+        </div>
+      </form>
+      <div class="form-text mt-2">
+        * Gunakan file hasil export Excel dari aplikasi ini, atau CSV sesuai format kolom.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

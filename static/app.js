@@ -63,11 +63,51 @@ if (window.Chart) {
 })();
 
 // ---- Helper: warna chart mengikuti CSS variable --chart-bar
-export function chartGradient(ctx, canvas){
+window.chartGradient = function(ctx, canvas){
   const rgb = getComputedStyle(document.documentElement).getPropertyValue('--chart-bar').trim() || '45,156,219';
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
   grad.addColorStop(0, `rgba(${rgb}, .55)`);
   grad.addColorStop(1, `rgba(${rgb}, .15)`);
   return grad;
-}
+};
+
+// Tutup offcanvas setelah klik link
+document.addEventListener('click', function(e){
+  const link = e.target.closest('[data-bs-dismiss=offcanvas], .offcanvas a');
+  const canvasEl = document.querySelector('.offcanvas.show');
+  if(link && canvasEl && window.bootstrap){
+    const offcanvas = bootstrap.Offcanvas.getInstance(canvasEl);
+    if(offcanvas) offcanvas.hide();
+  }
+});
+
+// Page enter animation
+document.addEventListener('DOMContentLoaded', () => {
+  const main = document.querySelector('main');
+  if(main){ requestAnimationFrame(()=> main.classList.add('page-enter')); }
+});
+
+// Page leave animation untuk link internal
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[href]');
+  if(!a) return;
+
+  const url = new URL(a.href, location.href);
+  const sameOrigin = url.origin === location.origin;
+
+  // Skip: open new tab / download / anchors / tel / mail / data-no-transition
+  if (!sameOrigin || a.target === '_blank' || a.hasAttribute('download') ||
+      a.getAttribute('href').startsWith('#') ||
+      /^mailto:|^tel:/.test(a.getAttribute('href')) ||
+      a.hasAttribute('data-no-transition')) {
+    return;
+  }
+
+  // Hindari cegah form submit
+  if (a.closest('form')) return;
+
+  e.preventDefault();
+  document.body.classList.add('page-leave');
+  setTimeout(()=> location.href = a.href, 180);
+});
 

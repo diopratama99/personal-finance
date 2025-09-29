@@ -1,7 +1,15 @@
 {% extends "base.html" %}
+
+{% block head_extra %}
+  <!-- Chart.js (global, 1x) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
-<div class="card-soft mb-3" data-aos="fade-up">
-  <form class="row gy-2 gx-2 align-items-end" method="get">
+
+<!-- FILTER PERIODE + EXPORT -->
+<div class="card-soft mb-3">
+  <form class="row gy-2 gx-2 align-items-end filter-grid" method="get">
     <div class="col-auto">
       <label class="form-label mb-0">Mulai</label>
       <input type="date" class="form-control" name="start" value="{{ start }}">
@@ -13,27 +21,23 @@
     <div class="col-auto">
       <button class="btn btn-primary">Tampilkan</button>
     </div>
-    <div class="col-auto ms-auto d-flex gap-2">
-      <a class="btn btn-outline-primary" href="{{ url_for('export_excel', start=start, end=end) }}">Export Excel</a>
-      <a class="btn btn-outline-primary" href="{{ url_for('export_pdf', start=start, end=end) }}">Export PDF</a>
+    <div class="col-auto ms-auto">
+      <a class="btn btn-outline-primary" href="{{ url_for('import_export', start=start, end=end) }}">
+        🔁 Import/Export
+      </a>
     </div>
-  </form>
-  <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data" class="mt-2">
-    <div class="input-group">
-      <input class="form-control" type="file" name="file" accept=".csv,.xlsx,.xls">
-      <button class="btn btn-outline-primary" type="submit">Upload CSV</button>
-    </div>
-    <div class="form-text">* CSV sesuai template.</div>
   </form>
 </div>
 
-<div class="row g-3">
+<!-- RINGKASAN & GRAFIK -->
+<div class="row g-3 align-items-stretch equal-row">
   <div class="col-lg-4">
-    <div class="card-soft h-100" data-aos="fade-right">
+    <div class="card-soft h-100">
       <h6 class="text-muted">Ringkasan Periode</h6>
       <div class="display-6 fw-semibold mt-2 count-up" data-target="{{ summary.income }}">Pendapatan: {{ summary.income|money }}</div>
       <div class="display-6 fw-semibold text-danger count-up" data-target="{{ summary.expense }}">Pengeluaran: {{ summary.expense|money }}</div>
       <div class="display-6 fw-semibold {{ 'text-success' if summary.net>=0 else 'text-danger' }} count-up" data-target="{{ summary.net }}">Saldo: {{ summary.net|money }}</div>
+
       <hr>
       <h6 class="text-muted">Statistik Pengeluaran</h6>
       {% if spend_by_cat %}
@@ -48,17 +52,17 @@
   </div>
 
   <div class="col-lg-8">
-    <div class="card-soft h-100" data-aos="fade-left">
+    <div class="card-soft h-100">
       <h6 class="mb-3">Grafik Pengeluaran per Kategori</h6>
       <div class="chart-box">
-        <canvas id="spendChart"></canvas>
+        <canvas id="expenseChart"></canvas>
       </div>
     </div>
   </div>
 </div>
 
 {% if budgets %}
-<div class="card-soft mt-3" data-aos="fade-up">
+<div class="card-soft mt-3">
   <h6 class="mb-3">Budget Bulan {{ start[:7] }}</h6>
   {% for b in budgets %}
     {% set pct = (100 * b.spent / b.amount) if b.amount else 0 %}
@@ -76,7 +80,8 @@
 </div>
 {% endif %}
 
-<div class="card-soft mt-3" data-aos="fade-up">
+<!-- 10 TRANSAKSI TERAKHIR -->
+<div class="card-soft mt-3">
   <h6 class="mb-3">10 Transaksi Terakhir</h6>
   <div class="table-responsive">
     <table class="table table-hover align-middle">
@@ -100,21 +105,30 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block body_extra %}
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  const raw = {{ spend_by_cat|tojson|safe }};
-  const canvas = document.getElementById('spendChart');
-  if (!canvas) return;
+  // Data dari server
+  const raw = {{ (spend_by_cat if spend_by_cat is defined else [])|tojson }};
+  const canvas = document.getElementById('expenseChart');
+  if (!canvas || !window.Chart) return;
+
   if (Array.isArray(raw) && raw.length > 0) {
     const labels = raw.map(r => r.category);
     const values = raw.map(r => Number(r.total) || 0);
     const ctx = canvas.getContext('2d');
 
-    // ambil gradient dari CSS variable (lihat app.js)
-    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--chart-bar').trim() || '45,156,219';
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, `rgba(${rgb}, .6)`);
-    grad.addColorStop(1, `rgba(${rgb}, .2)`);
+    // Gradient warna (gunakan helper dari app.js kalau ada)
+    const bg = (window.chartGradient ? window.chartGradient(ctx, canvas)
+             : (function(){
+                  const rgb = getComputedStyle(document.documentElement).getPropertyValue('--chart-bar').trim() || '45,156,219';
+                  const g = ctx.createLinearGradient(0,0,0,canvas.height);
+                  g.addColorStop(0, `rgba(${rgb}, .55)`);
+                  g.addColorStop(1, `rgba(${rgb}, .15)`);
+                  return g;
+               })());
 
     new Chart(ctx, {
       type: 'bar',
@@ -123,22 +137,31 @@ document.addEventListener('DOMContentLoaded', function(){
         datasets: [{
           label: 'Pengeluaran (Rp)',
           data: values,
-          backgroundColor: grad,
-          borderColor: `rgba(${rgb}, .9)`,
-          borderWidth: 1.5,
+          backgroundColor: bg,
           borderRadius: 8,
-          hoverBorderWidth: 2
+          maxBarThickness: 48
         }]
       },
       options: {
-        maintainAspectRatio: false,
-        scales: { y: { beginAtZero: true, ticks:{ callback:(v)=>v.toLocaleString('id-ID') } } },
-        animation:{ duration:900, easing:'easeOutQuart' },
-        plugins:{ legend:{ display:true, labels:{ boxWidth:12 } },
-          tooltip:{ callbacks:{ label:(ctx)=>'Rp '+Math.round(ctx.raw).toLocaleString('id-ID') } } }
+        responsive: true,
+        maintainAspectRatio: false,       // ikut tinggi .chart-box
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { callback: (v)=> 'Rp ' + Number(v).toLocaleString('id-ID') }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: { label: (c)=> 'Rp ' + Number(c.raw).toLocaleString('id-ID') }
+          }
+        },
+        animation: { duration: 800, easing: 'easeOutQuart' }
       }
     });
   } else {
+    // Fallback: tidak ada data
     const empty = document.createElement('div');
     empty.className = 'text-muted d-flex align-items-center justify-content-center h-100';
     empty.textContent = 'Tidak ada data pengeluaran pada periode ini.';
@@ -146,6 +169,4 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 });
 </script>
-
-
 {% endblock %}

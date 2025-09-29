@@ -199,6 +199,25 @@ def dashboard():
         latest=[dict(r) for r in latest]
     )
 
+# --- Import/Export page (baru) ---
+@app.route("/import-export", methods=["GET"])
+@login_required
+def import_export():
+    # default range: bulan berjalan
+    today = date.today()
+    start_default = today.replace(day=1).isoformat()
+    end_default = today.isoformat()
+
+    start = request.args.get("start", start_default)
+    end = request.args.get("end", end_default)
+
+    return render_template(
+        "import_export.html",
+        title="Import & Export",
+        start=start,
+        end=end,
+    )
+
 @app.get("/add")
 @login_required
 def add_form():
