@@ -57,58 +57,54 @@ app.js
 - (Windows) Microsoft C++ Build Tools kadang diperlukan untuk beberapa paket
 
 ### 1) Clone repo
-```bash
+bash
 git clone https://github.com/<username>/<repo>.git
 cd <repo>
 
-2) Buat & aktifkan virtual environment
+### 2) Buat & aktifkan virtual environment
 
-Windows (PowerShell)
-
+- Windows (PowerShell)
 python -m venv .venv
 . .venv\Scripts\Activate.ps1
 
-
-macOS / Linux
-
+- macOS / Linux
 python3 -m venv .venv
 source .venv/bin/activate
 
-3) Install dependencies
-pip install -r requirements.txt
+### 3) Install dependencies
+  pip install -r requirements.txt
 
+  Jika perlu:
 
-Jika perlu:
+  pip install openpyxl reportlab
 
-pip install openpyxl reportlab
+### 4) (Opsional) File .env
 
-4) (Opsional) File .env
+  Buat file .env di root (atau set dari shell):
 
-Buat file .env di root (atau set dari shell):
+  SECRET_KEY=ubah-ke-string-acak
+  FINANCE_DB_PATH=finance.db
 
-SECRET_KEY=ubah-ke-string-acak
-FINANCE_DB_PATH=finance.db
+### 5) Jalankan aplikasi
 
-5) Jalankan aplikasi
+#### Opsi A – Flask
 
-Opsi A – Flask
-
-# Windows
+- Windows
 set FLASK_APP=app.py & flask run
-# macOS/Linux
+- macOS/Linux
 export FLASK_APP=app.py && flask run
 
-
-Opsi B – Python
+#### Opsi B – Python
 
 python app.py
-
 
 Buka: http://127.0.0.1:5000
 
 Daftar akun di /register, lalu login.
 
-🔁 Import & Export
+---
+
+## 🔁 Import & Export
 
 Buka menu 🔁 Import/Export.
 
@@ -116,26 +112,30 @@ Export: pilih rentang tanggal → Export Excel / Export PDF.
 
 Import: unggah CSV/Excel (format kolom mengikuti hasil export Excel aplikasi ini).
 
-☁️ Deploy Singkat (Azure App Service)
+---
 
-Buat Web App Linux (F1 untuk testing).
+##  ☁️ Deploy Singkat (Azure App Service)
 
-Set Configuration → Application settings:
+• Buat Web App Linux (F1 untuk testing).
 
-SECRET_KEY = string acak
+• Set Configuration → Application settings:
 
-FINANCE_DB_PATH = /home/data/finance.db (lokasi persisten)
+  SECRET_KEY = string acak
 
-Gunakan GitHub Actions (Deployment Center) untuk auto-deploy.
+  FINANCE_DB_PATH = /home/data/finance.db (lokasi persisten)
 
-Startup command (jika perlu):
+• Gunakan GitHub Actions (Deployment Center) untuk auto-deploy.
 
-gunicorn --bind=0.0.0.0:8000 app:app
+• Startup command (jika perlu):
+
+  gunicorn --bind=0.0.0.0:8000 app:app
 
 
-Catatan: F1 punya cold start & tidak mendukung custom domain. Untuk custom domain, scale ke B1.
+* Catatan: F1 punya cold start & tidak mendukung custom domain. Untuk custom domain, scale ke B1.
 
-🧪 Troubleshooting
+---
+
+##  🧪 Troubleshooting
 
 ModuleNotFoundError: openpyxl/reportlab
 Jalankan pip install openpyxl reportlab.
@@ -152,21 +152,26 @@ Grafik tidak muncul
 Cek ada data pada periode, Chart.js ter-load, dan elemen <canvas id="expenseChart"> ada.
 Di CSS, pastikan wrapper grafik memiliki tinggi (mis. .chart-box{height:360px}) dan opsi Chart maintainAspectRatio:false.
 
-🗺️ Roadmap Singkat
+---
 
-FAB + search/filter riwayat + warna/ikon kategori
+##  🗺️ Roadmap Singkat
 
-Tren 12 bulan + alert budget
+• FAB + search/filter riwayat + warna/ikon kategori
 
-PWA + recurring transactions
+• Tren 12 bulan + alert budget
 
-Import wizard (mapping bebas) + attachment struk
+• PWA + recurring transactions
 
-Backup otomatis + onboarding mini
+• Import wizard (mapping bebas) + attachment struk
 
-🤝 Kontribusi
+• Backup otomatis + onboarding mini
+
+---
+
+##  🤝 Kontribusi
 
 PR & issue dipersilakan.
 Untuk perubahan UI, sertakan screenshot sebelum/sesudah.
 Jika mengubah skema DB, sertakan migrasi idempotent.
+
 
