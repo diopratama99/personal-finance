@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card-soft mb-3" data-aos="fade-up" style="max-width:980px;margin:auto">
+  <h5 class="mb-3">Budget Bulanan</h5>
+
+  <!-- Filter bulan (GET) -->
+  <form class="row g-2 align-items-end" method="get" action="{{ url_for('budgets_page') }}">
+    <div class="col-auto">
+      <label class="form-label mb-0">Bulan</label>
+      <input type="month" class="form-control" name="month" value="{{ month }}">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary">Tampilkan</button>
+    </div>
+  </form>
+</div>
+
+<div class="card-soft mb-3" data-aos="fade-up" style="max-width:980px;margin:auto">
+  <h6 class="mb-2">Tambah / Ubah Budget ({{ month }})</h6>
+  <form method="post" action="{{ url_for('budgets_set') }}" class="row g-2">
+    <input type="hidden" name="month" value="{{ month }}">
+    <div class="col-md-6">
+      <label class="form-label">Kategori (pengeluaran)</label>
+      <select class="form-select" name="category_id" required>
+        {% for c in categories %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Nominal</label>
+      <input class="form-control" name="amount" type="number" min="0" placeholder="contoh: 1500000" required>
+    </div>
+    <div class="col-md-2 d-grid">
+      <label class="form-label invisible">Simpan</label>
+      <button class="btn btn-primary">Simpan</button>
+    </div>
+  </form>
+  <div class="form-text">Jika kategori & bulan sama sudah ada, nilai akan **di-update** (bukan dobel).</div>
+</div>
+
+<div class="card-soft" data-aos="fade-up" style="max-width:980px;margin:auto">
+  <h6 class="mb-3">Daftar Budget Bulan {{ month }}</h6>
+  {% if rows %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr><th>Kategori</th><th>Nominal</th></tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>{{ r.category }}</td>
+              <td>{{ r.amount|money }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted mb-0">Belum ada budget untuk bulan ini.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

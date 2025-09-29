@@ -32,7 +32,7 @@
   <div class="table-responsive">
     <table class="table table-hover align-middle">
       <thead>
-        <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Sumber/Payee</th><th>Akun</th><th>Catatan</th></tr>
+        <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Metode</th><th>Keterangan</th><th>Catatan</th></tr>
       </thead>
       <tbody>
         {% for r in rows %}
@@ -41,8 +41,8 @@
             <td class="{{ 'text-success' if r.type=='income' else 'text-danger' }}">{{ r.type }}</td>
             <td>{{ r.category }}</td>
             <td>{{ r.amount|money }}</td>
-            <td>{{ r.source_or_payee or '-' }}</td>
-            <td>{{ r.account or '-' }}</td>
+            <td>{{ r.payment_method or '-' }}</td>
+            <td>{{ r.keterangan or '-' }}</td>
             <td>{{ r.notes or '-' }}</td>
           </tr>
         {% endfor %}
@@ -61,3 +61,11 @@
   </nav>
 </div>
 {% endblock %}
+
+<td class="text-nowrap">
+  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_form', trx_id=r.id) }}">Edit</a>
+  <form method="post" action="{{ url_for('delete_trx', trx_id=r.id) }}" class="d-inline"
+        onsubmit="return confirm('Hapus transaksi ini?')">
+    <button class="btn btn-sm btn-outline-danger">Hapus</button>
+  </form>
+</td>

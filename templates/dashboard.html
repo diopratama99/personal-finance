@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card-soft mb-3">
+<div class="card-soft mb-3" data-aos="fade-up">
   <form class="row gy-2 gx-2 align-items-end" method="get">
     <div class="col-auto">
       <label class="form-label mb-0">Mulai</label>
@@ -13,13 +13,14 @@
     <div class="col-auto">
       <button class="btn btn-primary">Tampilkan</button>
     </div>
-    <div class="col-auto ms-auto">
-      <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data"></form>
+    <div class="col-auto ms-auto d-flex gap-2">
+      <a class="btn btn-outline-primary" href="{{ url_for('export_excel', start=start, end=end) }}">Export Excel</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('export_pdf', start=start, end=end) }}">Export PDF</a>
     </div>
   </form>
   <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data" class="mt-2">
     <div class="input-group">
-      <input class="form-control" type="file" name="file" accept=".csv">
+      <input class="form-control" type="file" name="file" accept=".csv,.xlsx,.xls">
       <button class="btn btn-outline-primary" type="submit">Upload CSV</button>
     </div>
     <div class="form-text">* CSV sesuai template.</div>
@@ -28,11 +29,11 @@
 
 <div class="row g-3">
   <div class="col-lg-4">
-    <div class="card-soft h-100">
+    <div class="card-soft h-100" data-aos="fade-right">
       <h6 class="text-muted">Ringkasan Periode</h6>
-      <div class="display-6 fw-semibold mt-2">Pendapatan: {{ summary.income|money }}</div>
-      <div class="display-6 fw-semibold text-danger">Pengeluaran: {{ summary.expense|money }}</div>
-      <div class="display-6 fw-semibold {{ 'text-success' if summary.net>=0 else 'text-danger' }}">Saldo: {{ summary.net|money }}</div>
+      <div class="display-6 fw-semibold mt-2 count-up" data-target="{{ summary.income }}">Pendapatan: {{ summary.income|money }}</div>
+      <div class="display-6 fw-semibold text-danger count-up" data-target="{{ summary.expense }}">Pengeluaran: {{ summary.expense|money }}</div>
+      <div class="display-6 fw-semibold {{ 'text-success' if summary.net>=0 else 'text-danger' }} count-up" data-target="{{ summary.net }}">Saldo: {{ summary.net|money }}</div>
       <hr>
       <h6 class="text-muted">Statistik Pengeluaran</h6>
       {% if spend_by_cat %}
@@ -47,19 +48,40 @@
   </div>
 
   <div class="col-lg-8">
-    <div class="card-soft h-100">
+    <div class="card-soft h-100" data-aos="fade-left">
       <h6 class="mb-3">Grafik Pengeluaran per Kategori</h6>
-      <canvas id="spendChart"></canvas>
+      <div class="chart-box">
+        <canvas id="spendChart"></canvas>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="card-soft mt-3">
+{% if budgets %}
+<div class="card-soft mt-3" data-aos="fade-up">
+  <h6 class="mb-3">Budget Bulan {{ start[:7] }}</h6>
+  {% for b in budgets %}
+    {% set pct = (100 * b.spent / b.amount) if b.amount else 0 %}
+    <div class="mb-2">
+      <div class="d-flex justify-content-between small">
+        <span>{{ b.category }}</span>
+        <span>{{ b.spent|money }} / {{ b.amount|money }}</span>
+      </div>
+      <div class="progress budget">
+        <div class="progress-bar {{ 'bg-danger' if pct>100 else 'bg-success' }}" role="progressbar" style="width: {{ [pct,150]|min }}%"></div>
+      </div>
+    </div>
+  {% endfor %}
+  <a class="btn btn-light btn-sm mt-2" href="{{ url_for('budgets_page', month=start[:7]) }}">Kelola Budget</a>
+</div>
+{% endif %}
+
+<div class="card-soft mt-3" data-aos="fade-up">
   <h6 class="mb-3">10 Transaksi Terakhir</h6>
   <div class="table-responsive">
     <table class="table table-hover align-middle">
       <thead>
-        <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Sumber/Payee</th><th>Akun</th><th>Catatan</th></tr>
+        <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Metode</th><th>Keterangan</th><th>Catatan</th></tr>
       </thead>
       <tbody>
         {% for t in latest %}
@@ -68,8 +90,8 @@
           <td class="{{ 'text-success' if t.type=='income' else 'text-danger' }}">{{ t.type }}</td>
           <td>{{ t.category }}</td>
           <td>{{ t.amount|money }}</td>
-          <td>{{ t.source_or_payee or '-' }}</td>
-          <td>{{ t.account or '-' }}</td>
+          <td>{{ t.payment_method or '-' }}</td>
+          <td>{{ t.keterangan or '-' }}</td>
           <td>{{ t.notes or '-' }}</td>
         </tr>
         {% endfor %}
@@ -79,14 +101,51 @@
 </div>
 
 <script>
-  const raw = {{ spend_by_cat|tojson }};
-  const labels = raw.map(r => r.category);
-  const data = raw.map(r => r.total);
-  new Chart(document.getElementById('spendChart'), {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'Pengeluaran (Rp)', data, borderWidth: 1 }] },
-    options: { scales: { y: { beginAtZero: true } },
-      plugins:{ tooltip:{ callbacks:{ label:(ctx)=>'Rp '+Math.round(ctx.raw).toLocaleString('id-ID') }}}}
-  });
+document.addEventListener('DOMContentLoaded', function(){
+  const raw = {{ spend_by_cat|tojson|safe }};
+  const canvas = document.getElementById('spendChart');
+  if (!canvas) return;
+  if (Array.isArray(raw) && raw.length > 0) {
+    const labels = raw.map(r => r.category);
+    const values = raw.map(r => Number(r.total) || 0);
+    const ctx = canvas.getContext('2d');
+
+    // ambil gradient dari CSS variable (lihat app.js)
+    const rgb = getComputedStyle(document.documentElement).getPropertyValue('--chart-bar').trim() || '45,156,219';
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, `rgba(${rgb}, .6)`);
+    grad.addColorStop(1, `rgba(${rgb}, .2)`);
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Pengeluaran (Rp)',
+          data: values,
+          backgroundColor: grad,
+          borderColor: `rgba(${rgb}, .9)`,
+          borderWidth: 1.5,
+          borderRadius: 8,
+          hoverBorderWidth: 2
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true, ticks:{ callback:(v)=>v.toLocaleString('id-ID') } } },
+        animation:{ duration:900, easing:'easeOutQuart' },
+        plugins:{ legend:{ display:true, labels:{ boxWidth:12 } },
+          tooltip:{ callbacks:{ label:(ctx)=>'Rp '+Math.round(ctx.raw).toLocaleString('id-ID') } } }
+      }
+    });
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'text-muted d-flex align-items-center justify-content-center h-100';
+    empty.textContent = 'Tidak ada data pengeluaran pada periode ini.';
+    canvas.parentElement.replaceWith(empty);
+  }
+});
 </script>
+
+
 {% endblock %}

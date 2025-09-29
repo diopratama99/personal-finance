@@ -1,14 +1,26 @@
--- Kategori terpisah (biar fleksibel)
-CREATE TABLE IF NOT EXISTS categories (
+-- Users
+CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  type TEXT CHECK(type IN ('income','expense')) NOT NULL,
   name TEXT NOT NULL,
-  UNIQUE(type, name)
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- Transaksi refer ke category_id
+-- Categories milik user (income/expense)
+CREATE TABLE IF NOT EXISTS categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  type TEXT CHECK(type IN ('income','expense')) NOT NULL,
+  name TEXT NOT NULL,
+  UNIQUE(user_id, type, name),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Transactions milik user
 CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
   date TEXT NOT NULL,                      -- YYYY-MM-DD
   type TEXT CHECK(type IN ('income','expense')) NOT NULL,
   category_id INTEGER NOT NULL,
@@ -16,15 +28,20 @@ CREATE TABLE IF NOT EXISTS transactions (
   source_or_payee TEXT,
   account TEXT,
   notes TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (category_id) REFERENCES categories(id)
 );
+CREATE INDEX IF NOT EXISTS idx_trx_user_date ON transactions(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_trx_user_type ON transactions(user_id, type);
 
-CREATE INDEX IF NOT EXISTS idx_trx_date ON transactions(date);
-CREATE INDEX IF NOT EXISTS idx_trx_type ON transactions(type);
-CREATE INDEX IF NOT EXISTS idx_trx_cat ON transactions(category_id);
-
--- Seed kategori default
-INSERT OR IGNORE INTO categories(type,name) VALUES
-('income','Gaji'),('income','Bonus'),('income','Investasi'),('income','Freelance'),
-('expense','Makan'),('expense','Transport'),('expense','Belanja'),
-('expense','Hiburan'),('expense','Kesehatan'),('expense','Tagihan'),('expense','Lainnya');
+-- Budget bulanan per kategori (YYYY-MM)
+CREATE TABLE IF NOT EXISTS budgets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  category_id INTEGER NOT NULL,
+  month TEXT NOT NULL,                     -- 2025-09
+  amount REAL NOT NULL,
+  UNIQUE(user_id, category_id, month),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (category_id) REFERENCES categories(id)
+);

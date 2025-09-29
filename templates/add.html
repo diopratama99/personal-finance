@@ -29,13 +29,17 @@
       <input type="number" min="1" class="form-control" name="amount" placeholder="contoh: 150000" required>
     </div>
     <div class="col-md-4">
-      <label class="form-label">Sumber/Payee</label>
-      <input type="text" class="form-control" name="source_or_payee" placeholder="PT Maju / Indomaret">
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Akun</label>
-      <input type="text" class="form-control" name="account" placeholder="BCA / Tunai / e-Wallet">
-    </div>
+  <label class="form-label">Keterangan</label>
+  <input type="text" class="form-control" name="keterangan" placeholder="contoh: Beli Sarapan / Gaji Bulanan">
+</div>
+<div class="col-md-4">
+  <label class="form-label">Metode Pembayaran</label>
+  <select class="form-select" name="payment_method" required>
+    <option value="Transfer">Transfer</option>
+    <option value="E-Wallet">E-Wallet</option>
+    <option value="Tunai">Tunai</option>
+  </select>
+</div>
     <div class="col-12">
       <label class="form-label">Catatan</label>
       <input type="text" class="form-control" name="notes" placeholder="opsional">
