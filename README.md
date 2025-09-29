@@ -28,25 +28,24 @@ Aplikasi web pencatatan keuangan pribadi: catat pemasukan/pengeluaran, kelola ka
 
 ---
 
-## 📂 Struktur Direktori Singkat
+## 📁 Struktur Direktori Singkat
 
-
-
-app.py
-requirements.txt
-schema.sql
-templates/
-base.html
-dashboard.html
-history.html
-categories.html
-budgets.html
-import_export.html
-static/
-style.css
-app.js
-
-
+```text
+.
+├─ app.py
+├─ requirements.txt
+├─ schema.sql
+├─ templates/
+│  ├─ base.html
+│  ├─ dashboard.html
+│  ├─ history.html
+│  ├─ categories.html
+│  ├─ budgets.html
+│  └─ import_export.html
+└─ static/
+   ├─ style.css
+   └─ app.js
+```
 ---
 
 ## 🚀 Menjalankan di Lokal
@@ -57,46 +56,50 @@ app.js
 - (Windows) Microsoft C++ Build Tools kadang diperlukan untuk beberapa paket
 
 ### 1) Clone repo
-bash
+```bash
 git clone https://github.com/<username>/<repo>.git
 cd <repo>
+```
 
 ### 2) Buat & aktifkan virtual environment
 
 - Windows (PowerShell)
+```
 python -m venv .venv
 . .venv\Scripts\Activate.ps1
-
+```
 - macOS / Linux
+```
 python3 -m venv .venv
 source .venv/bin/activate
-
+```
 ### 3) Install dependencies
+ ```
   pip install -r requirements.txt
-
+```
   Jika perlu:
-
+```
   pip install openpyxl reportlab
-
+```
 ### 4) (Opsional) File .env
 
   Buat file .env di root (atau set dari shell):
-
+```
   SECRET_KEY=ubah-ke-string-acak
   FINANCE_DB_PATH=finance.db
-
+```
 ### 5) Jalankan aplikasi
 
 #### Opsi A – Flask
 
-- Windows
-set FLASK_APP=app.py & flask run
-- macOS/Linux
-export FLASK_APP=app.py && flask run
+##### Windows
+```set FLASK_APP=app.py & flask run```
+##### macOS/Linux
+```export FLASK_APP=app.py && flask run```
 
 #### Opsi B – Python
 
-python app.py
+```python app.py```
 
 Buka: http://127.0.0.1:5000
 
@@ -116,41 +119,42 @@ Import: unggah CSV/Excel (format kolom mengikuti hasil export Excel aplikasi ini
 
 ##  ☁️ Deploy Singkat (Azure App Service)
 
-• Buat Web App Linux (F1 untuk testing).
+1. Buat Web App Linux (F1 untuk testing).
 
-• Set Configuration → Application settings:
+2. Set Configuration → Application settings:
 
-  SECRET_KEY = string acak
+  - ```SECRET_KEY = string acak```
 
-  FINANCE_DB_PATH = /home/data/finance.db (lokasi persisten)
+  - ```FINANCE_DB_PATH = /home/data/finance.db``` (lokasi persisten)
 
-• Gunakan GitHub Actions (Deployment Center) untuk auto-deploy.
+3. Gunakan GitHub Actions (Deployment Center) untuk auto-deploy.
 
-• Startup command (jika perlu):
+4. Startup command (jika perlu):
 
-  gunicorn --bind=0.0.0.0:8000 app:app
-
-
-* Catatan: F1 punya cold start & tidak mendukung custom domain. Untuk custom domain, scale ke B1.
+  ```gunicorn --bind=0.0.0.0:8000 app:app```
+  
+Catatan: F1 punya cold start & tidak mendukung custom domain. Untuk custom domain, scale ke B1.
 
 ---
 
 ##  🧪 Troubleshooting
 
-ModuleNotFoundError: openpyxl/reportlab
-Jalankan pip install openpyxl reportlab.
+```ModuleNotFoundError: openpyxl/reportlab```
+Jalankan: 
+```pip install openpyxl reportlab.```
 
-database is locked (SQLite)
-Pastikan koneksi mengaktifkan:
-
+```database is locked``` (SQLite)
+Aktifkan opsi saat membuat koneksi:
+```
 conn.execute("PRAGMA busy_timeout = 5000")
 conn.execute("PRAGMA journal_mode=WAL")
 conn.execute("PRAGMA synchronous=NORMAL")
-
+```
 
 Grafik tidak muncul
-Cek ada data pada periode, Chart.js ter-load, dan elemen <canvas id="expenseChart"> ada.
-Di CSS, pastikan wrapper grafik memiliki tinggi (mis. .chart-box{height:360px}) dan opsi Chart maintainAspectRatio:false.
+Cek ada data pada periode, Chart.js ter-load, dan elemen:
+```<canvas id="expenseChart">``` 
+Di CSS, pastikan wrapper grafik memiliki tinggi ```(mis. .chart-box{height:360px})``` dan set Chart.js ```Chart maintainAspectRatio:false.```
 
 ---
 
@@ -173,5 +177,6 @@ Di CSS, pastikan wrapper grafik memiliki tinggi (mis. .chart-box{height:360px}) 
 PR & issue dipersilakan.
 Untuk perubahan UI, sertakan screenshot sebelum/sesudah.
 Jika mengubah skema DB, sertakan migrasi idempotent.
+
 
 
