@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card-soft mb-3">
+  <form class="row g-2" method="get">
+    <div class="col-md-3">
+      <select class="form-select" name="type">
+        <option value="">Semua jenis</option>
+        <option value="income" {{ 'selected' if q_type=='income' else '' }}>income</option>
+        <option value="expense" {{ 'selected' if q_type=='expense' else '' }}>expense</option>
+      </select>
+    </div>
+    <div class="col-md-5">
+      <select class="form-select" name="category_id">
+        <option value="">Semua kategori</option>
+        {% for c in categories %}
+          <option value="{{ c.id }}" {{ 'selected' if q_cat==c.id|string else '' }}>
+            [{{ c.type }}] {{ c.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100">Filter</button>
+    </div>
+    <div class="col-md-2">
+      <a class="btn btn-light w-100" href="{{ url_for('add_form') }}">+ Tambah</a>
+    </div>
+  </form>
+</div>
+
+<div class="card-soft">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Sumber/Payee</th><th>Akun</th><th>Catatan</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.date }}</td>
+            <td class="{{ 'text-success' if r.type=='income' else 'text-danger' }}">{{ r.type }}</td>
+            <td>{{ r.category }}</td>
+            <td>{{ r.amount|money }}</td>
+            <td>{{ r.source_or_payee or '-' }}</td>
+            <td>{{ r.account or '-' }}</td>
+            <td>{{ r.notes or '-' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <nav>
+    <ul class="pagination">
+      {% for i in range(1, pages+1) %}
+      <li class="page-item {{ 'active' if i==page else '' }}">
+        <a class="page-link" href="{{ url_for('history', page=i, type=q_type, category_id=q_cat) }}">{{ i }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </nav>
+</div>
+{% endblock %}

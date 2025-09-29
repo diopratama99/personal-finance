@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card-soft mb-3">
+  <form class="row gy-2 gx-2 align-items-end" method="get">
+    <div class="col-auto">
+      <label class="form-label mb-0">Mulai</label>
+      <input type="date" class="form-control" name="start" value="{{ start }}">
+    </div>
+    <div class="col-auto">
+      <label class="form-label mb-0">Selesai</label>
+      <input type="date" class="form-control" name="end" value="{{ end }}">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary">Tampilkan</button>
+    </div>
+    <div class="col-auto ms-auto">
+      <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data"></form>
+    </div>
+  </form>
+  <form action="{{ url_for('upload_csv') }}" method="post" enctype="multipart/form-data" class="mt-2">
+    <div class="input-group">
+      <input class="form-control" type="file" name="file" accept=".csv">
+      <button class="btn btn-outline-primary" type="submit">Upload CSV</button>
+    </div>
+    <div class="form-text">* CSV sesuai template.</div>
+  </form>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card-soft h-100">
+      <h6 class="text-muted">Ringkasan Periode</h6>
+      <div class="display-6 fw-semibold mt-2">Pendapatan: {{ summary.income|money }}</div>
+      <div class="display-6 fw-semibold text-danger">Pengeluaran: {{ summary.expense|money }}</div>
+      <div class="display-6 fw-semibold {{ 'text-success' if summary.net>=0 else 'text-danger' }}">Saldo: {{ summary.net|money }}</div>
+      <hr>
+      <h6 class="text-muted">Statistik Pengeluaran</h6>
+      {% if spend_by_cat %}
+        <p>Kategori terbanyak: <b>{{ spend_by_cat[0].category }}</b> ({{ spend_by_cat[0].total|money }})</p>
+      {% else %}
+        <p>Belum ada data.</p>
+      {% endif %}
+      {% if top_payee %}
+        <p>Terbanyak ke: <b>{{ top_payee.payee }}</b> ({{ top_payee.total|money }}, {{ top_payee.cnt }} trx)</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card-soft h-100">
+      <h6 class="mb-3">Grafik Pengeluaran per Kategori</h6>
+      <canvas id="spendChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="card-soft mt-3">
+  <h6 class="mb-3">10 Transaksi Terakhir</h6>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Sumber/Payee</th><th>Akun</th><th>Catatan</th></tr>
+      </thead>
+      <tbody>
+        {% for t in latest %}
+        <tr>
+          <td>{{ t.date }}</td>
+          <td class="{{ 'text-success' if t.type=='income' else 'text-danger' }}">{{ t.type }}</td>
+          <td>{{ t.category }}</td>
+          <td>{{ t.amount|money }}</td>
+          <td>{{ t.source_or_payee or '-' }}</td>
+          <td>{{ t.account or '-' }}</td>
+          <td>{{ t.notes or '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const raw = {{ spend_by_cat|tojson }};
+  const labels = raw.map(r => r.category);
+  const data = raw.map(r => r.total);
+  new Chart(document.getElementById('spendChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Pengeluaran (Rp)', data, borderWidth: 1 }] },
+    options: { scales: { y: { beginAtZero: true } },
+      plugins:{ tooltip:{ callbacks:{ label:(ctx)=>'Rp '+Math.round(ctx.raw).toLocaleString('id-ID') }}}}
+  });
+</script>
+{% endblock %}

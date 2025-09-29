@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card-soft">
+  <h5 class="mb-3">Tambah {{ 'Pemasukan' if default_type=='income' else 'Pengeluaran' }}</h5>
+  <form method="post" action="{{ url_for('add_submit') }}" class="row g-3">
+    <div class="col-md-3">
+      <label class="form-label">Tanggal</label>
+      <input type="date" class="form-control" name="date" value="{{ request.args.get('date') or caller_date or '' }}" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Jenis</label>
+      <select class="form-select" name="type" id="typeSelect" required>
+        <option value="income" {{ 'selected' if default_type=='income' else '' }}>income</option>
+        <option value="expense" {{ 'selected' if default_type=='expense' else '' }}>expense</option>
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Kategori</label>
+      <select class="form-select" name="category_id" id="categorySelect" required>
+        {% for c in categories %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Kelola di menu Kategori jika belum ada.</div>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label">Nominal</label>
+      <input type="number" min="1" class="form-control" name="amount" placeholder="contoh: 150000" required>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Sumber/Payee</label>
+      <input type="text" class="form-control" name="source_or_payee" placeholder="PT Maju / Indomaret">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Akun</label>
+      <input type="text" class="form-control" name="account" placeholder="BCA / Tunai / e-Wallet">
+    </div>
+    <div class="col-12">
+      <label class="form-label">Catatan</label>
+      <input type="text" class="form-control" name="notes" placeholder="opsional">
+    </div>
+    <div class="col-12 d-flex gap-2">
+      <button class="btn btn-primary">Simpan</button>
+      <a class="btn btn-light" href="{{ url_for('history') }}">Lihat Riwayat</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  async function loadCats(t){
+    const {data} = await axios.get(`/api/categories?type=${t}`);
+    const sel = document.getElementById('categorySelect');
+    sel.innerHTML = data.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  }
+  document.getElementById('typeSelect').addEventListener('change', e => loadCats(e.target.value));
+</script>
+{% endblock %}

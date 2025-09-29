@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card-soft h-100">
+      <h5 class="mb-3">Kategori Pemasukan</h5>
+      <ul class="list-group list-group-flush">
+        {% for c in income %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ c.name }} <span class="badge rounded-pill text-bg-success">income</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card-soft h-100">
+      <h5 class="mb-3">Kategori Pengeluaran</h5>
+      <ul class="list-group list-group-flush">
+        {% for c in expense %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ c.name }} <span class="badge rounded-pill text-bg-danger">expense</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="card-soft mt-3">
+  <h6 class="mb-2">Tambah Kategori</h6>
+  <form method="post" class="row g-2" action="{{ url_for('categories_add') }}">
+    <div class="col-md-3">
+      <select name="type" class="form-select" required>
+        <option value="income">income</option>
+        <option value="expense" selected>expense</option>
+      </select>
+    </div>
+    <div class="col-md-6">
+      <input name="name" class="form-control" placeholder="Nama kategori baru" required>
+    </div>
+    <div class="col-md-3">
+      <button class="btn btn-primary w-100">Tambah</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
