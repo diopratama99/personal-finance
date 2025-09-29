@@ -1,7 +1,6 @@
 import os, io, sqlite3
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
-
 import pandas as pd
 from flask import Flask, render_template, request, redirect, url_for, send_file, jsonify, flash, abort
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
@@ -19,7 +18,7 @@ app.secret_key = os.getenv("SECRET_KEY", "change-this-in-production")
 
 # ---------- DB ----------
 def db():
-    conn = sqlite3.connect(APP_DB, timeout=5.0)  # tunggu sampai 5 detik kalau terkunci
+    conn = sqlite3.connect(APP_DB, timeout=5.0)  
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout = 5000")   # cadangan
     return conn
@@ -100,7 +99,6 @@ def do_register():
 
     flash("Pendaftaran berhasil. Silakan login.")
     return redirect(url_for("login"))
-
 
 @app.get("/login")
 def login():
@@ -183,8 +181,7 @@ def dashboard():
             ORDER BY t.date DESC, t.id DESC
             LIMIT 10
         """, (current_user.id, start, end)).fetchall()
-
-
+    # ringkas summary
     summary = {
         "income": float(totals["income"] or 0),
         "expense": float(totals["expense"] or 0),

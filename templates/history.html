@@ -49,8 +49,8 @@
             <td class="{{ 'text-danger' if r.type=='expense' else 'text-success' }}">{{ r.type }}</td>
             <td>{{ r.category }}</td>
             <td>Rp {{ "{:,.0f}".format(r.amount|int) }}</td>
-            <td>{{ r.method }}</td>
-            <td>{{ r.note or '-' }}</td>
+            <td>{{ r.payment_method or '-' }}</td>
+            <td>{{ r.keterangan or '-' }}</td>
             <td class="text-nowrap">
               <a class="btn btn-sm btn-outline-primary"
                  href="{{ url_for('edit_form', trx_id=r.id) }}">Edit</a>

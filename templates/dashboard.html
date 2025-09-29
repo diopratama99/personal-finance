@@ -55,7 +55,7 @@
     <div class="card-soft h-100">
       <h6 class="mb-3">Grafik Pengeluaran per Kategori</h6>
       <div class="chart-box">
-        <canvas id="expenseChart"></canvas>
+        <canvas id="expenseChart" aria-label="Grafik pengeluaran per kategori" role="img"></canvas>
       </div>
     </div>
   </div>
@@ -71,8 +71,8 @@
         <span>{{ b.category }}</span>
         <span>{{ b.spent|money }} / {{ b.amount|money }}</span>
       </div>
-      <div class="progress budget">
-        <div class="progress-bar {{ 'bg-danger' if pct>100 else 'bg-success' }}" role="progressbar" style="width: {{ [pct,150]|min }}%"></div>
+      <div class="progress budget" aria-label="Progress budget {{ b.category }}">
+        <div class="progress-bar {{ 'bg-danger' if pct>100 else 'bg-success' }}" role="progressbar" style="width: {{ [pct,150]|min }}%" aria-valuenow="{{ pct|round|int }}" aria-valuemin="0" aria-valuemax="150"></div>
       </div>
     </div>
   {% endfor %}
@@ -109,64 +109,99 @@
 
 {% block body_extra %}
 <script>
-document.addEventListener('DOMContentLoaded', function(){
-  // Data dari server
-  const raw = {{ (spend_by_cat if spend_by_cat is defined else [])|tojson }};
-  const canvas = document.getElementById('expenseChart');
-  if (!canvas || !window.Chart) return;
+  // Simpan chart instance supaya tidak double saat re-init
+  let expenseChartInstance = null;
 
-  if (Array.isArray(raw) && raw.length > 0) {
-    const labels = raw.map(r => r.category);
-    const values = raw.map(r => Number(r.total) || 0);
+  // Animasi count-up sederhana (opsional)
+  function runCountUp() {
+    const els = document.querySelectorAll('.count-up');
+    els.forEach(el => {
+      const target = Number(el.dataset.target || 0);
+      const start = 0;
+      const dur = 700;
+      const t0 = performance.now();
+      function tick(t){
+        const p = Math.min(1, (t - t0) / dur);
+        const val = Math.round(start + (target - start) * p);
+        // Format pakai locale ID
+        const formatted = val.toLocaleString('id-ID');
+        // Ganti angka di dalam teks yang ada labelnya
+        el.innerHTML = el.innerHTML.replace(/: .+$/, `: Rp ${formatted}`);
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function renderExpenseChart() {
+    const canvas = document.getElementById('expenseChart');
+    if (!canvas || !window.Chart) return;
+
+    // Data dari server (aman saat kosong)
+    const raw = {{ (spend_by_cat if spend_by_cat is defined else [])|tojson }};
     const ctx = canvas.getContext('2d');
 
-    // Gradient warna (gunakan helper dari app.js kalau ada)
-    const bg = (window.chartGradient ? window.chartGradient(ctx, canvas)
-             : (function(){
-                  const rgb = getComputedStyle(document.documentElement).getPropertyValue('--chart-bar').trim() || '45,156,219';
-                  const g = ctx.createLinearGradient(0,0,0,canvas.height);
-                  g.addColorStop(0, `rgba(${rgb}, .55)`);
-                  g.addColorStop(1, `rgba(${rgb}, .15)`);
-                  return g;
-               })());
+    // Hapus chart lama bila ada
+    if (expenseChartInstance) {
+      expenseChartInstance.destroy();
+      expenseChartInstance = null;
+    }
 
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Pengeluaran (Rp)',
-          data: values,
-          backgroundColor: bg,
-          borderRadius: 8,
-          maxBarThickness: 48
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,       // ikut tinggi .chart-box
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: (v)=> 'Rp ' + Number(v).toLocaleString('id-ID') }
-          }
+    if (Array.isArray(raw) && raw.length > 0) {
+      const labels = raw.map(r => r.category);
+      const values = raw.map(r => Number(r.total) || 0);
+
+      const bg = (function(){
+        if (window.chartGradient) return window.chartGradient(ctx, canvas);
+        const rgb = getComputedStyle(document.documentElement).getPropertyValue('--chart-bar').trim() || '45,156,219';
+        const g = ctx.createLinearGradient(0,0,0,canvas.height);
+        g.addColorStop(0, `rgba(${rgb}, .55)`);
+        g.addColorStop(1, `rgba(${rgb}, .15)`);
+        return g;
+      })();
+
+      expenseChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Pengeluaran (Rp)',
+            data: values,
+            backgroundColor: bg,
+            borderRadius: 8,
+            maxBarThickness: 48
+          }]
         },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: { label: (c)=> 'Rp ' + Number(c.raw).toLocaleString('id-ID') }
-          }
-        },
-        animation: { duration: 800, easing: 'easeOutQuart' }
-      }
-    });
-  } else {
-    // Fallback: tidak ada data
-    const empty = document.createElement('div');
-    empty.className = 'text-muted d-flex align-items-center justify-content-center h-100';
-    empty.textContent = 'Tidak ada data pengeluaran pada periode ini.';
-    canvas.parentElement.replaceWith(empty);
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { callback: (v) => 'Rp ' + Number(v).toLocaleString('id-ID') }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (c)=> 'Rp ' + Number(c.raw).toLocaleString('id-ID') } }
+          },
+          animation: { duration: 800, easing: 'easeOutQuart' }
+        }
+      });
+    } else {
+      // Tampilkan placeholder bila tidak ada data
+      const empty = document.createElement('div');
+      empty.className = 'text-muted d-flex align-items-center justify-content-center h-100';
+      empty.textContent = 'Tidak ada data pengeluaran pada periode ini.';
+      canvas.parentElement.replaceWith(empty);
+    }
   }
-});
+
+  // Hook dipanggil dari base.html
+  window.pageInit = function(fromBFCache) {
+    // Re-render chart & animasi pada load biasa maupun saat kembali dari BFCache
+    renderExpenseChart();
+    runCountUp();
+  };
 </script>
 {% endblock %}
