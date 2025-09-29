@@ -1,6 +1,6 @@
 # Temanku — Personal Finance Web App
 
-Aplikasi web pencatatan keuangan pribadi: catat pemasukan/pengeluaran, kelola kategori & budget, lihat statistik, serta **import/export** data. Desain **minimalis–modern**, responsif, dan mendukung **dark mode**.
+Aplikasi web pencatatan keuangan pribadi: catat pemasukan/pengeluaran, kelola kategori & budget, lihat statistik, serta **import/export** data. Desain **minimalis–modern**, responsif.
 
 ---
 
@@ -177,6 +177,7 @@ Di CSS, pastikan wrapper grafik memiliki tinggi ```(mis. .chart-box{height:360px
 PR & issue dipersilakan.
 Untuk perubahan UI, sertakan screenshot sebelum/sesudah.
 Jika mengubah skema DB, sertakan migrasi idempotent.
+
 
 
 
