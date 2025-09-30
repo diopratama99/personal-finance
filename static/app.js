@@ -58,9 +58,29 @@ if (window.Chart) {
 
 // style untuk ripple (inject ke head satu kali)
 (function(){
-  const css = `.ripple{position:absolute;border-radius:50%;transform:scale(0);animation:ripple .6s linear;background:rgba(255,255,255,.6)}@keyframes ripple{to{transform:scale(4);opacity:0}}`;
-  const s = document.createElement('style'); s.innerHTML = css; document.head.appendChild(s);
+  const css = `.ripple{position:absolute;border-radius:50%;transition:transform .6s,opacity .6s;transform:scale(0);opacity:.5;background:radial-gradient(circle,rgba(255,255,255,.8) 10%,rgba(255,255,255,.6) 40%,rgba(255,255,255,.0) 70%)}.ripple{animation:ripple .6s ease-out}.btn-ripple{position:relative;overflow:hidden}@keyframes ripple{to{transform:scale(4);opacity:0}}`;
+  const s = document.createElement('style');
+  s.innerHTML = css;                  // ⟵ FIX: pakai 'css', bukan 'cs'
+  document.head.appendChild(s);
 })();
+
+// inisialisasi ripple untuk semua .btn
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('.btn, .btn-ripple, [data-ripple]');
+  if (!btn) return;
+
+  const rect = btn.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  const size = Math.max(rect.width, rect.height);
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+  ripple.style.top  = (e.clientY - rect.top  - size/2) + 'px';
+
+  btn.classList.add('btn-ripple');
+  btn.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 650);
+});
 
 // ---- Helper: warna chart mengikuti CSS variable --chart-bar
 window.chartGradient = function(ctx, canvas){

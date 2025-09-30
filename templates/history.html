@@ -1,33 +1,58 @@
 {% extends "base.html" %}
 {% block content %}
+
+<!-- ========== Filter bar ========== -->
 <div class="card-soft mb-3">
-  <form class="row g-2" method="get">
+  <form id="historyFilter" class="row g-2" method="get" novalidate>
+    <!-- Jenis -->
     <div class="col-md-3">
-      <select class="form-select" name="type">
+      <select class="form-select" name="type" id="typeFilter" aria-label="Filter jenis">
         <option value="">Semua jenis</option>
-        <option value="income" {{ 'selected' if q_type=='income' else '' }}>income</option>
+        <option value="income"  {{ 'selected' if q_type=='income'  else '' }}>income</option>
         <option value="expense" {{ 'selected' if q_type=='expense' else '' }}>expense</option>
       </select>
     </div>
+
+    <!-- Kategori -->
     <div class="col-md-5">
-      <select class="form-select" name="category_id">
+      <select class="form-select" name="category_id" id="catFilter" aria-label="Filter kategori">
         <option value="">Semua kategori</option>
-        {% for c in categories %}
-          <option value="{{ c.id }}" {{ 'selected' if q_cat==c.id|string else '' }}>
-            [{{ c.type }}] {{ c.name }}
-          </option>
-        {% endfor %}
+
+        <!-- Income -->
+        <optgroup label="🟢 income">
+          {% for c in categories if c.type == 'income' %}
+            <option value="{{ c.id }}" data-type="income"
+                    {{ 'selected' if q_cat==c.id|string else '' }}>
+              🟢 {{ c.name }}
+            </option>
+          {% endfor %}
+        </optgroup>
+
+        <!-- Expense -->
+        <optgroup label="🔴 expense">
+          {% for c in categories if c.type == 'expense' %}
+            <option value="{{ c.id }}" data-type="expense"
+                    {{ 'selected' if q_cat==c.id|string else '' }}>
+              🔴 {{ c.name }}
+            </option>
+          {% endfor %}
+        </optgroup>
       </select>
     </div>
+
+    <!-- Actions -->
     <div class="col-md-2">
-      <button class="btn btn-primary w-100">Filter</button>
+      <button type="submit" class="btn btn-primary w-100">Filter</button>
     </div>
     <div class="col-md-2">
-      <a class="btn btn-light w-100" href="{{ url_for('add_form') }}">+ Tambah</a>
+      <a class="btn btn-outline-secondary w-100" href="{{ url_for('add_form') }}">
+        Tambah transaksi
+      </a>
     </div>
   </form>
 </div>
 
+<!-- ========== Tabel riwayat ========== -->
 <div class="card-soft">
   <div class="table-responsive">
     <table class="table table-hover align-middle">
@@ -48,9 +73,9 @@
             <td>{{ r.date }}</td>
             <td class="{{ 'text-danger' if r.type=='expense' else 'text-success' }}">{{ r.type }}</td>
             <td>{{ r.category }}</td>
-            <td>Rp {{ "{:,.0f}".format(r.amount|int) }}</td>
-            <td>{{ r.payment_method or '-' }}</td>
-            <td>{{ r.keterangan or '-' }}</td>
+            <td>{{ r.amount|money }}</td>
+            <td>{{ r.payment_method }}</td>
+            <td>{{ r.keterangan }}</td>
             <td class="text-nowrap">
               <a class="btn btn-sm btn-outline-primary"
                  href="{{ url_for('edit_form', trx_id=r.id) }}">Edit</a>
@@ -73,15 +98,47 @@
     </table>
   </div>
 
-  <nav>
+  <!-- Pagination -->
+  <nav aria-label="Navigasi halaman riwayat">
     <ul class="pagination">
       {% for i in range(1, pages+1) %}
-      <li class="page-item {{ 'active' if i==page else '' }}">
-        <a class="page-link"
-           href="{{ url_for('history', page=i, type=q_type, category_id=q_cat) }}">{{ i }}</a>
-      </li>
+        <li class="page-item {{ 'active' if i==page else '' }}">
+          <a class="page-link"
+             href="{{ url_for('history', page=i, type=q_type, category_id=q_cat) }}">{{ i }}</a>
+        </li>
       {% endfor %}
     </ul>
   </nav>
 </div>
+
+<!-- ========== Script: sinkronisasi filter ========== -->
+<script>
+  (function () {
+    const typeSel = document.getElementById('typeFilter');
+    const catSel  = document.getElementById('catFilter');
+
+    function filterCategories() {
+      const t = (typeSel.value || '').toLowerCase(); // '' | 'income' | 'expense'
+      // reset ke "Semua kategori" setiap ganti jenis
+      catSel.selectedIndex = 0;
+
+      // tampilkan hanya opsi yang sesuai (atau semua jika t kosong)
+      for (const opt of catSel.options) {
+        if (opt.value === '') { // "Semua kategori"
+          opt.hidden = false;
+          opt.disabled = false;
+          continue;
+        }
+        const ok = !t || (opt.dataset.type === t);
+        opt.hidden   = !ok;
+        opt.disabled = !ok;
+      }
+    }
+
+    typeSel.addEventListener('change', filterCategories);
+    // inisialisasi sesuai nilai query saat ini
+    filterCategories();
+  })();
+</script>
+
 {% endblock %}

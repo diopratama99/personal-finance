@@ -41,17 +41,40 @@
     <div class="offcanvas-body d-flex flex-column gap-3">
       {% if current_user.is_authenticated %}
         <nav class="list-group list-group-flush">
-          <a class="list-group-item menu-link {{ 'active' if ep=='dashboard' else '' }}" href="{{ url_for('dashboard') }}">🏠 Dashboard</a>
-          <a class="list-group-item menu-link {{ 'active' if ep=='history' else '' }}" href="{{ url_for('history') }}">📜 Riwayat</a>
-          <a class="list-group-item menu-link {{ 'active' if ep=='categories_page' else '' }}" href="{{ url_for('categories_page') }}">🏷️ Kategori</a>
-          <a class="list-group-item menu-link {{ 'active' if ep=='budgets_page' else '' }}" href="{{ url_for('budgets_page') }}">📊 Budget</a>
-          <a class="list-group-item menu-link {{ 'active' if ep=='import_export' else '' }}" href="{{ url_for('import_export') }}">🔁 Import/Export</a>
-        </nav>
+  <!-- 1) Dashboard -->
+  <a class="list-group-item menu-link {{ 'active' if ep=='dashboard' else '' }}"
+     href="{{ url_for('dashboard') }}">
+    🏠 Dashboard
+  </a>
 
-        <div class="d-grid gap-2 mt-2">
-          <a class="btn btn-menu-primary" href="{{ url_for('add_form', type='income') }}">+ Income</a>
-          <a class="btn btn-menu-outline" href="{{ url_for('add_form', type='expense') }}">+ Expense</a>
-          <a class="btn btn-menu-warning" href="{{ url_for('logout') }}">Logout</a>
+  <!-- 2) Tambah transaksi (pindah ke bawah Dashboard, pakai emoji ➕) -->
+    <a class="list-group-item menu-link {{ 'active' if ep=='add_form' else '' }}"
+     href="{{ url_for('add_form') }}">
+    ➕ Tambah transaksi
+    </a>
+
+      <!-- 3) Menu lainnya -->
+      <a class="list-group-item menu-link {{ 'active' if ep=='history' else '' }}"
+        href="{{ url_for('history') }}">
+        📜 Riwayat
+      </a>
+      <a class="list-group-item menu-link {{ 'active' if ep=='categories_page' else '' }}"
+        href="{{ url_for('categories_page') }}">
+        🏷️ Kategori
+      </a>
+      <a class="list-group-item menu-link {{ 'active' if ep=='budgets_page' else '' }}"
+        href="{{ url_for('budgets_page') }}">
+        📊 Budget
+      </a>
+      <a class="list-group-item menu-link {{ 'active' if ep=='import_export' else '' }}"
+        href="{{ url_for('import_export') }}">
+        🔁 Import/Export
+      </a>
+    </nav>
+
+        <!-- Logout: merah agar tegas -->
+        <div class="d-grid mt-3">
+          <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
         </div>
       {% else %}
         <a class="btn btn-light" href="{{ url_for('login') }}">Login</a>
@@ -64,8 +87,7 @@
   <div class="container d-sm-none mt-2">
     <div class="chips-scroll">
       <a class="chip" href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a class="chip chip-primary" href="{{ url_for('add_form', type='income') }}">+ Income</a>
-      <a class="chip chip-outline" href="{{ url_for('add_form', type='expense') }}">+ Expense</a>
+      <a class="chip chip-primary" href="{{ url_for('add_form') }}">Tambah transaksi</a>
       <a class="chip" href="{{ url_for('categories_page') }}">Kategori</a>
       <a class="chip" href="{{ url_for('budgets_page') }}">Budget</a>
     </div>

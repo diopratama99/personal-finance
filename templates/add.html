@@ -1,22 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card-soft">
-  <h5 class="mb-3">Tambah {{ 'Pemasukan' if default_type=='income' else 'Pengeluaran' }}</h5>
-  <form method="post" action="{{ url_for('add_submit') }}" class="row g-3">
+  <h5 class="mb-3">Tambah Transaksi</h5>
+
+  <form method="post" action="{{ url_for('add_submit') }}" class="row g-3" id="trxForm">
+    <!-- Tanggal -->
     <div class="col-md-3">
-      <label class="form-label">Tanggal</label>
-      <input type="date" class="form-control" name="date" value="{{ request.args.get('date') or caller_date or '' }}" required>
+      <label for="dateInput" class="form-label">Tanggal</label>
+      <input
+        id="dateInput"
+        type="date"
+        class="form-control"
+        name="date"
+        value="{{ request.args.get('date') or caller_date or '' }}"
+        required
+      />
     </div>
+
+    <!-- Jenis (wajib, tanpa default) -->
     <div class="col-md-3">
-      <label class="form-label">Jenis</label>
+      <label for="typeSelect" class="form-label">Jenis</label>
       <select class="form-select" name="type" id="typeSelect" required>
-        <option value="income" {{ 'selected' if default_type=='income' else '' }}>income</option>
+        <option value="" {{ 'selected' if not default_type else '' }} disabled>— pilih jenis —</option>
+        <option value="income"  {{ 'selected' if default_type=='income'  else '' }}>income</option>
         <option value="expense" {{ 'selected' if default_type=='expense' else '' }}>expense</option>
       </select>
     </div>
+
+    <!-- Kategori (disable sampai jenis dipilih) -->
     <div class="col-md-6">
-      <label class="form-label">Kategori</label>
-      <select class="form-select" name="category_id" id="categorySelect" required>
+      <label for="categorySelect" class="form-label">Kategori</label>
+      <select
+        class="form-select"
+        name="category_id"
+        id="categorySelect"
+        required
+      >
+        <option value="" selected disabled>— pilih kategori —</option>
         {% for c in categories %}
           <option value="{{ c.id }}">{{ c.name }}</option>
         {% endfor %}
@@ -24,26 +44,94 @@
       <div class="form-text">Kelola di menu Kategori jika belum ada.</div>
     </div>
 
+    <!-- Nominal, Keterangan, Metode -->
     <div class="col-md-4">
-      <label class="form-label">Nominal</label>
-      <input type="number" min="1" class="form-control" name="amount" placeholder="contoh: 150000" required>
+      <label for="amountInput" class="form-label">Nominal</label>
+      <input
+        id="amountInput"
+        type="number"
+        min="1000"
+        step="1000"
+        inputmode="numeric"
+        class="form-control"
+        name="amount"
+        placeholder="contoh: 150000"
+        required
+      />
     </div>
+
     <div class="col-md-4">
-  <label class="form-label">Keterangan</label>
-  <input type="text" class="form-control" name="keterangan" placeholder="contoh: Beli Sarapan / Gaji Bulanan">
-</div>
-<div class="col-md-4">
-  <label class="form-label">Metode Pembayaran</label>
-  <select class="form-select" name="payment_method" required>
-    <option value="Transfer">Transfer</option>
-    <option value="E-Wallet">E-Wallet</option>
-    <option value="Tunai">Tunai</option>
-  </select>
-</div>
+      <label for="noteInput" class="form-label">Keterangan</label>
+      <input
+        id="noteInput"
+        type="text"
+        class="form-control"
+        name="keterangan"
+        placeholder="contoh: Beli Sarapan / Gaji Bulanan"
+        autocomplete="off"
+      />
+    </div>
+
+    <div class="col-md-4">
+      <label for="paymentSelect" class="form-label">Metode Pembayaran</label>
+      <select id="paymentSelect" class="form-select" name="payment_method" required>
+        <option value="" selected disabled>— pilih metode —</option>
+        <option value="Transfer">Transfer</option>
+        <option value="E-Wallet">E-Wallet</option>
+        <option value="Tunai">Tunai</option>
+      </select>
+    </div>
+
+    <!-- Catatan -->
     <div class="col-12">
-      <label class="form-label">Catatan</label>
-      <input type="text" class="form-control" name="notes" placeholder="opsional">
+      <label for="notesInput" class="form-label">Catatan</label>
+      <input
+        id="notesInput"
+        type="text"
+        class="form-control"
+        name="notes"
+        placeholder="opsional"
+        autocomplete="off"
+      />
     </div>
+
+            <!-- Transaksi Favorit -->
+    <div class="col-12">
+      <div class="p-3 border border-warning rounded bg-warning-subtle">
+        <div class="d-flex flex-column flex-md-row align-items-md-center gap-2">
+          <label for="favSelect" class="form-label m-0 me-md-2">Gunakan favorit:</label>
+
+          <!-- Select: label sederhana "Nama — Kategori" -->
+          <select id="favSelect" class="form-select" style="max-width:420px">
+            <option value="" selected>— pilih favorit —</option>
+            {% for f in favorites %}
+              <option value="{{ f.id }}" data-type="{{ f.type }}">
+                {{ f.name }} — {{ f.category }}
+              </option>
+            {% endfor %}
+          </select>
+
+          <!-- Badge tipe (warna) -->
+          <span id="favTypeBadge" class="badge d-none ms-md-2"></span>
+
+          <div class="ms-md-auto d-flex gap-2">
+            <!-- Teks tombol gelap di kotak emas -->
+            <button type="button" id="btnSaveFav" class="btn btn-warning text-dark">
+              Simpan sbg Favorit
+            </button>
+            <!-- Hapus favorit (muncul saat ada pilihan) -->
+            <button type="button" id="btnDeleteFav" class="btn btn-outline-danger" disabled>
+              Hapus Favorit
+            </button>
+          </div>
+        </div>
+        <div class="form-text mt-1">
+          Pilih favorit untuk mengisi form otomatis, atau simpan isian saat ini sebagai favorit.
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
     <div class="col-12 d-flex gap-2">
       <button class="btn btn-primary">Simpan</button>
       <a class="btn btn-light" href="{{ url_for('history') }}">Lihat Riwayat</a>
@@ -52,11 +140,199 @@
 </div>
 
 <script>
-  async function loadCats(t){
-    const {data} = await axios.get(`/api/categories?type=${t}`);
-    const sel = document.getElementById('categorySelect');
-    sel.innerHTML = data.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  // ===== Util: set max date = today =====
+  (function setTodayMax() {
+    try {
+      var today = new Date().toISOString().slice(0, 10);
+      var dateEl = document.getElementById('dateInput');
+      if (dateEl) dateEl.max = today;
+    } catch (e) {}
+  })();
+
+  // ===== Kategori <-> Jenis =====
+  const typeSel = document.getElementById('typeSelect');
+  const catSel  = document.getElementById('categorySelect');
+  const PLACEHOLDER = `<option value="" selected disabled>— pilih kategori —</option>`;
+
+  // ambil kategori via fetch & aktifkan dropdown
+  async function loadCats(t) {
+    if (!catSel) return;
+    if (!t) {
+      catSel.disabled = true;
+      catSel.innerHTML = PLACEHOLDER;
+      return;
+    }
+    try {
+      const res = await fetch(`/api/categories?type=${encodeURIComponent(t)}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      catSel.innerHTML =
+        PLACEHOLDER +
+        data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      catSel.disabled = false;     // penting: aktifkan setelah sukses
+      catSel.value = '';           // paksa pilih ulang sesuai jenis
+    } catch (e) {
+      console.error('Gagal memuat kategori:', e);
+      catSel.disabled = true;
+      catSel.innerHTML = PLACEHOLDER;
+    }
   }
-  document.getElementById('typeSelect').addEventListener('change', e => loadCats(e.target.value));
+
+  function syncCategoryState() {
+    const t = (typeSel?.value || '').toLowerCase();
+    if (t === 'income' || t === 'expense') {
+      loadCats(t);
+    } else {
+      catSel.disabled = true;
+      catSel.innerHTML = PLACEHOLDER;
+    }
+  }
+
+  typeSel?.addEventListener('change', syncCategoryState);
+  typeSel?.addEventListener('input',  syncCategoryState);
+
+  // Inisialisasi (cover autofill/bfcache)
+  document.addEventListener('DOMContentLoaded', () => {
+    syncCategoryState();
+    setTimeout(syncCategoryState, 0);
+  });
+
+  // ====== FAVORITES ======
+  const favSelect = document.getElementById('favSelect');
+  const favBadge  = document.getElementById('favTypeBadge');
+  const btnSave   = document.getElementById('btnSaveFav');
+  const btnDel    = document.getElementById('btnDeleteFav');
+
+  function renderFavTypeBadge(type) {
+    if (!favBadge) return;
+    if (!type) {
+      favBadge.className = 'badge d-none ms-md-2';
+      favBadge.textContent = '';
+      return;
+    }
+    if (type === 'income') {
+      favBadge.className = 'badge text-bg-success ms-md-2';
+      favBadge.textContent = 'income';
+    } else {
+      favBadge.className = 'badge text-bg-danger ms-md-2';
+      favBadge.textContent = 'expense';
+    }
+  }
+
+  async function applyFavoriteById(id) {
+    if (!id) return;
+    try {
+      const res = await fetch('/api/favorites');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const list = await res.json();
+      const fav = list.find(x => String(x.id) === String(id));
+      if (!fav) return;
+
+      // set jenis → muat kategori → pilih kategori
+      if (typeSel) typeSel.value = fav.type;
+      await loadCats(fav.type);
+      if (catSel) catSel.value = fav.category_id;
+
+      // isi field lain (jika ada)
+      const amountEl = document.getElementById('amountInput');
+      const noteEl   = document.getElementById('noteInput');
+      const notesEl  = document.getElementById('notesInput');
+      const payEl    = document.getElementById('paymentSelect');
+
+      if (amountEl && fav.amount) amountEl.value = parseInt(fav.amount);
+      if (noteEl   && fav.source_or_payee) noteEl.value  = fav.source_or_payee;
+      if (notesEl  && fav.notes)           notesEl.value = fav.notes;
+      if (payEl    && fav.account)         payEl.value   = fav.account;
+
+      renderFavTypeBadge(fav.type);
+    } catch (e) {
+      console.error('Gagal menerapkan favorit:', e);
+    }
+  }
+
+  // Perubahan pilihan favorit
+  favSelect?.addEventListener('change', (e) => {
+    const opt = e.target.selectedOptions[0];
+    const t = opt?.dataset?.type || '';
+    renderFavTypeBadge(t);
+    if (btnDel) btnDel.disabled = !e.target.value;
+    if (e.target.value) applyFavoriteById(e.target.value);
+  });
+
+  // Simpan sebagai favorit
+  btnSave?.addEventListener('click', async () => {
+    const name = prompt('Nama favorit (mis. "Makan Siang")');
+    if (!name) return;
+
+    const payload = {
+      name: name,
+      type: typeSel?.value || '',
+      category_id: catSel?.value || '',
+      amount: (document.getElementById('amountInput')?.value || ''),
+      account: (document.getElementById('paymentSelect')?.value || ''),
+      source_or_payee: (document.getElementById('noteInput')?.value || ''),
+      notes: (document.getElementById('notesInput')?.value || '')
+    };
+
+    try {
+      const res = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const js = await res.json();
+      if (!res.ok || !js.ok) {
+        alert(js.msg || 'Gagal menyimpan favorit.');
+        return;
+      }
+      const f = js.data;
+      // Tambah opsi baru
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.dataset.type = f.type;
+      opt.textContent = `${f.name} — ${f.category}`;
+      favSelect?.appendChild(opt);
+      if (favSelect) favSelect.value = f.id;
+      renderFavTypeBadge(f.type);
+      if (btnDel) btnDel.disabled = false;
+      applyFavoriteById(f.id); // langsung terapkan
+    } catch (e) {
+      alert('Gagal menyimpan favorit.');
+      console.error(e);
+    }
+  });
+
+  // Hapus favorit
+  btnDel?.addEventListener('click', async () => {
+    const id = favSelect?.value;
+    if (!id) return;
+    if (!confirm('Hapus favorit ini?')) return;
+
+    try {
+      const res = await fetch(`/api/favorites/delete/${encodeURIComponent(id)}`, { method: 'POST' });
+      const js = await res.json();
+      if (!res.ok || !js.ok) {
+        alert(js.msg || 'Gagal menghapus favorit.');
+        return;
+      }
+      const opt = favSelect.querySelector(`option[value="${CSS.escape(id)}"]`);
+      if (opt) opt.remove();
+      favSelect.value = '';
+      if (btnDel) btnDel.disabled = true;
+      renderFavTypeBadge('');
+    } catch (e) {
+      alert('Gagal menghapus favorit.');
+      console.error(e);
+    }
+  });
+
+  // Jika saat render sudah ada pilihan favorit (mis. dari history state), tampilkan badge awal
+  (function initFavBadge() {
+    const opt = favSelect?.selectedOptions?.[0];
+    renderFavTypeBadge(opt?.dataset?.type || '');
+    if (btnDel && favSelect) btnDel.disabled = !favSelect.value;
+  })();
 </script>
+
+
 {% endblock %}

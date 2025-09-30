@@ -2,55 +2,129 @@
 {% block content %}
 <div class="card-soft mx-auto" style="max-width:800px" data-aos="fade-up">
   <h5 class="mb-3">Edit Transaksi</h5>
+
   <form method="post" action="{{ url_for('edit_submit', trx_id=trx.id) }}" class="row g-3">
 
+    <!-- Tanggal (maks = hari ini) -->
     <div class="col-md-4">
-      <label class="form-label">Tanggal</label>
-      <input type="date" class="form-control" name="date" value="{{ trx.date }}" required>
+      <label for="dateInput" class="form-label">Tanggal</label>
+      <input
+        id="dateInput"
+        type="date"
+        class="form-control"
+        name="date"
+        value="{{ trx.date }}"
+        required
+      />
     </div>
 
+    <!-- Jenis (non-editable) -->
     <div class="col-md-4">
       <label class="form-label">Jenis</label>
-      <input type="text" class="form-control" value="{{ trx.type }}" disabled>
+      <input type="text" class="form-control" value="{{ trx.type }}" disabled />
     </div>
 
+    <!-- Kategori (wajib pilih, tanpa default) -->
     <div class="col-md-4">
-      <label class="form-label">Kategori</label>
-      <select class="form-select" name="category_id" required>
+      <label for="categorySelect" class="form-label">Kategori</label>
+      <select
+        id="categorySelect"
+        class="form-select"
+        name="category_id"
+        required
+      >
+        <option value="" disabled {{ 'selected' if not trx.category_id else '' }}>— pilih kategori —</option>
         {% for c in categories %}
-          <option value="{{ c.id }}" {{ 'selected' if trx.category_id==c.id else '' }}>{{ c.name }}</option>
+          <option value="{{ c.id }}" {{ 'selected' if trx.category_id==c.id else '' }}>
+            {{ c.name }}
+          </option>
         {% endfor %}
       </select>
     </div>
 
+    <!-- Nominal -->
     <div class="col-md-4">
-      <label class="form-label">Nominal</label>
-      <input type="number" class="form-control" name="amount" value="{{ trx.amount }}" required>
+      <label for="amountInput" class="form-label">Nominal</label>
+      <input
+        id="amountInput"
+        type="number"
+        min="1000"
+        step="1000"
+        inputmode="numeric"
+        class="form-control"
+        name="amount"
+        value="{{ (trx.amount or 0)|int }}"
+        required
+      />
     </div>
 
+    <!-- Keterangan -->
     <div class="col-md-4">
-      <label class="form-label">Keterangan</label>
-      <input type="text" class="form-control" name="keterangan" value="{{ trx.keterangan or '' }}">
+      <label for="noteInput" class="form-label">Keterangan</label>
+      <input
+        id="noteInput"
+        type="text"
+        class="form-control"
+        name="keterangan"
+        value="{{ trx.keterangan or '' }}"
+        autocomplete="off"
+      />
     </div>
 
+    <!-- Metode Pembayaran (wajib pilih, tanpa default) -->
     <div class="col-md-4">
-      <label class="form-label">Metode Pembayaran</label>
-      <select class="form-select" name="payment_method">
-        {% for opt in ['Transfer','E-Wallet','Tunai'] %}
-          <option value="{{ opt }}" {{ 'selected' if trx.payment_method==opt else '' }}>{{ opt }}</option>
-        {% endfor %}
+      <label for="paymentSelect" class="form-label">Metode Pembayaran</label>
+      <select
+        id="paymentSelect"
+        class="form-select"
+        name="payment_method"
+        required
+      >
+        <option value="" disabled {{ 'selected' if not trx.payment_method else '' }}>— pilih metode —</option>
+        <option value="Transfer" {{ 'selected' if trx.payment_method=='Transfer' else '' }}>Transfer</option>
+        <option value="E-Wallet" {{ 'selected' if trx.payment_method=='E-Wallet' else '' }}>E-Wallet</option>
+        <option value="Tunai"    {{ 'selected' if trx.payment_method=='Tunai'    else '' }}>Tunai</option>
       </select>
     </div>
 
+    <!-- Catatan -->
     <div class="col-12">
-      <label class="form-label">Catatan</label>
-      <input type="text" class="form-control" name="notes" value="{{ trx.notes or '' }}">
+      <label for="notesInput" class="form-label">Catatan</label>
+      <input
+        id="notesInput"
+        type="text"
+        class="form-control"
+        name="notes"
+        value="{{ trx.notes or '' }}"
+        autocomplete="off"
+      />
     </div>
 
+    <!-- Actions -->
     <div class="col-12 d-flex gap-2 mt-3">
       <button class="btn btn-primary">Simpan</button>
       <a href="{{ url_for('history') }}" class="btn btn-light">Batal</a>
     </div>
   </form>
 </div>
+
+<script>
+  // Batasi tanggal maksimal ke hari ini (sinkron dengan validasi server)
+  (function setTodayMax() {
+    try {
+      var today = new Date().toISOString().slice(0, 10);
+      var dateEl = document.getElementById('dateInput');
+      if (dateEl) dateEl.max = today;
+    } catch (e) {}
+  })();
+
+  // Jika transaksi lama tidak punya kategori/metode, paksa placeholder tetap terpilih
+  (function ensurePlaceholders() {
+    var catSel = document.getElementById('categorySelect');
+    if (catSel && !catSel.value) { catSel.value = ''; }
+
+    var paySel = document.getElementById('paymentSelect');
+    if (paySel && !paySel.value) { paySel.value = ''; }
+  })();
+</script>
 {% endblock %}
