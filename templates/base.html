@@ -3,7 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ title or 'Temanku' }}</title>
+
+  <!-- Title selalu diawali "Temanku" -->
+  <title>Temanku{% if title %} — {{ title }}{% endif %}</title>
+
+  <!-- Favicon emoji 💵 (tanpa file terpisah) -->
+  <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B5%3C/text%3E%3C/svg%3E">
+
+  <!-- Opsional: warna tab di mobile/desktop yang mendukung -->
+  <meta name="theme-color" content="#157347">
 
   <!-- Fonts & CSS -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -41,38 +50,38 @@
     <div class="offcanvas-body d-flex flex-column gap-3">
       {% if current_user.is_authenticated %}
         <nav class="list-group list-group-flush">
-  <!-- 1) Dashboard -->
-  <a class="list-group-item menu-link {{ 'active' if ep=='dashboard' else '' }}"
-     href="{{ url_for('dashboard') }}">
-    🏠 Dashboard
-  </a>
+          <!-- 1) Dashboard -->
+          <a class="list-group-item menu-link {{ 'active' if ep=='dashboard' else '' }}"
+             href="{{ url_for('dashboard') }}">
+            🏠 Dashboard
+          </a>
 
-  <!-- 2) Tambah transaksi (pindah ke bawah Dashboard, pakai emoji ➕) -->
-    <a class="list-group-item menu-link {{ 'active' if ep=='add_form' else '' }}"
-     href="{{ url_for('add_form') }}">
-    ➕ Tambah transaksi
-    </a>
+          <!-- 2) Tambah transaksi (setelah Dashboard) -->
+          <a class="list-group-item menu-link {{ 'active' if ep=='add_form' else '' }}"
+             href="{{ url_for('add_form') }}">
+            ➕ Tambah transaksi
+          </a>
 
-      <!-- 3) Menu lainnya -->
-      <a class="list-group-item menu-link {{ 'active' if ep=='history' else '' }}"
-        href="{{ url_for('history') }}">
-        📜 Riwayat
-      </a>
-      <a class="list-group-item menu-link {{ 'active' if ep=='categories_page' else '' }}"
-        href="{{ url_for('categories_page') }}">
-        🏷️ Kategori
-      </a>
-      <a class="list-group-item menu-link {{ 'active' if ep=='budgets_page' else '' }}"
-        href="{{ url_for('budgets_page') }}">
-        📊 Budget
-      </a>
-      <a class="list-group-item menu-link {{ 'active' if ep=='import_export' else '' }}"
-        href="{{ url_for('import_export') }}">
-        🔁 Import/Export
-      </a>
-    </nav>
+          <!-- 3) Menu lainnya -->
+          <a class="list-group-item menu-link {{ 'active' if ep=='history' else '' }}"
+             href="{{ url_for('history') }}">
+            📜 Riwayat
+          </a>
+          <a class="list-group-item menu-link {{ 'active' if ep=='categories_page' else '' }}"
+             href="{{ url_for('categories_page') }}">
+            🏷️ Kategori
+          </a>
+          <a class="list-group-item menu-link {{ 'active' if ep=='budgets_page' else '' }}"
+             href="{{ url_for('budgets_page') }}">
+            📊 Budget
+          </a>
+          <a class="list-group-item menu-link {{ 'active' if ep=='import_export' else '' }}"
+             href="{{ url_for('import_export') }}">
+            🔁 Import/Export
+          </a>
+        </nav>
 
-        <!-- Logout: merah agar tegas -->
+        <!-- Logout -->
         <div class="d-grid mt-3">
           <a class="btn btn-outline-danger" href="{{ url_for('logout') }}">Logout</a>
         </div>

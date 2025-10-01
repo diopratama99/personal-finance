@@ -259,3 +259,144 @@ body { font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Ar
 main{ opacity:0; transform: translateY(8px); }
 main.page-enter{ opacity:1; transform:none; transition:opacity .35s ease, transform .35s ease; }
 body.page-leave main{ opacity:0; transform: translateY(6px); transition:opacity .18s ease, transform .18s ease; }
+
+/* ===== Responsive stacked table (≤575.98px) ===== */
+@media (max-width: 575.98px) {
+  .table-stacked thead { display: none; }
+  .table-stacked tbody tr {
+    display: block;
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: 12px;
+    margin-bottom: .75rem;
+    overflow: hidden;
+    background: var(--card);
+  }
+  .table-stacked tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .75rem;
+    padding: .6rem .9rem;
+    border-top: 1px solid rgba(0,0,0,.04);
+  }
+  .table-stacked tbody td:first-child { border-top: 0; }
+  .table-stacked tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .table-stacked tbody td.action-cell { justify-content: flex-end; }
+}
+
+/* ===== Filter actions (desktop polish) ===== */
+@media (min-width: 768px){
+  .filter-actions .btn{
+    border-radius: 14px;
+    padding: .55rem 1rem;
+  }
+  .filter-actions .btn-primary{
+    box-shadow: 0 8px 22px rgba(0,0,0,.08);
+  }
+  .filter-actions .btn-primary:hover{
+    transform: translateY(-1px);
+  }
+  .filter-actions .btn-outline-secondary{
+    border-color: var(--glass-border);
+    background: transparent;
+  }
+}
+
+/* Polesan tombol filter bar di desktop */
+@media (min-width: 768px){
+  #historyFilter .btn{ padding:.55rem 1rem; border-radius:14px; }
+  #historyFilter .btn-primary{ box-shadow:0 8px 22px rgba(0,0,0,.08); }
+  #historyFilter .btn-primary:hover{ transform:translateY(-1px); }
+  #historyFilter .btn-outline-secondary{
+    background:transparent;
+    border-color:var(--glass-border);
+  }
+}
+
+/* Sesuaikan tinggi komponen kecil pada filter bar (desktop) */
+@media (min-width: 768px){
+  #historyFilter .form-select.form-select-sm { min-height: 36px; }
+  #historyFilter .btn-sm { padding: .4rem .85rem; border-radius: 12px; }
+}
+
+/* Rampingkan padding select di filter bar agar tombol Filter lebih lega (desktop) */
+@media (min-width: 768px){
+  #historyFilter .form-select-sm{
+    padding-inline: .5rem;   /* dari default ~.75rem */
+    min-height: 34px;
+  }
+  #historyFilter .btn{
+    padding: .55rem 1.1rem;  /* tombol lebih “berisi” */
+    border-radius: 12px;
+  }
+}
+
+/* ====== Tambah transaksi (filter bar) ====== */
+/* Selalu ada outline yang terlihat untuk tombol 'Tambah transaksi' */
+#historyFilter .btn-outline-secondary{
+  background: rgba(255,255,255,.88);
+  color: var(--text);
+  /* border pakai campuran warna teks biar kontras, dengan fallback */
+  border: 1.5px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-color: rgba(0,0,0,.14); /* fallback untuk browser tanpa color-mix */
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+  transition: background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .1s ease;
+}
+
+#historyFilter .btn-outline-secondary:hover{
+  background: #fff;
+  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 10px 24px rgba(0,0,0,.08), inset 0 0 0 1px rgba(0,0,0,.03);
+}
+
+#historyFilter .btn-outline-secondary:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring), inset 0 0 0 1px rgba(0,0,0,.03);
+  border-color: var(--primary);
+}
+
+#historyFilter .btn-outline-secondary:active{
+  transform: translateY(1px);
+}
+
+/* Dark theme tweak: tetap kontras */
+html[data-theme="dark"] #historyFilter .btn-outline-secondary{
+  background: rgba(255,255,255,.10);
+  color: #e6edf3;
+  border-color: color-mix(in srgb, #e6edf3 26%, transparent);
+  border-color: rgba(255,255,255,.26);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+}
+html[data-theme="dark"] #historyFilter .btn-outline-secondary:hover{
+  background: rgba(255,255,255,.16);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+#historyFilter .btn-outline-secondary:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+  border-color: var(--primary);
+}
+
+#historyFilter .btn-outline-secondary:active{
+  transform: translateY(1px);
+}
+
+/* Dark theme tweak: pastikan tetap kontras */
+html[data-theme="dark"] #historyFilter .btn-outline-secondary{
+  background: rgba(255,255,255,.08);
+  color: #e6edf3;
+  border-color: rgba(255,255,255,.28);
+}
+html[data-theme="dark"] #historyFilter .btn-outline-secondary:hover{
+  background: rgba(255,255,255,.14);
+  color: var(--primary);
+  border-color: var(--primary);
+}

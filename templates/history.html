@@ -3,9 +3,9 @@
 
 <!-- ========== Filter bar ========== -->
 <div class="card-soft mb-3">
-  <form id="historyFilter" class="row g-2" method="get" novalidate>
+  <form id="historyFilter" class="row g-2 align-items-center" method="get" novalidate>
     <!-- Jenis -->
-    <div class="col-md-3">
+    <div class="col-12 col-md-3">
       <select class="form-select" name="type" id="typeFilter" aria-label="Filter jenis">
         <option value="">Semua jenis</option>
         <option value="income"  {{ 'selected' if q_type=='income'  else '' }}>income</option>
@@ -14,15 +14,14 @@
     </div>
 
     <!-- Kategori -->
-    <div class="col-md-5">
+    <div class="col-12 col-md-4">
       <select class="form-select" name="category_id" id="catFilter" aria-label="Filter kategori">
         <option value="">Semua kategori</option>
 
         <!-- Income -->
         <optgroup label="🟢 income">
           {% for c in categories if c.type == 'income' %}
-            <option value="{{ c.id }}" data-type="income"
-                    {{ 'selected' if q_cat==c.id|string else '' }}>
+            <option value="{{ c.id }}" data-type="income" {{ 'selected' if q_cat==c.id|string else '' }}>
               🟢 {{ c.name }}
             </option>
           {% endfor %}
@@ -31,8 +30,7 @@
         <!-- Expense -->
         <optgroup label="🔴 expense">
           {% for c in categories if c.type == 'expense' %}
-            <option value="{{ c.id }}" data-type="expense"
-                    {{ 'selected' if q_cat==c.id|string else '' }}>
+            <option value="{{ c.id }}" data-type="expense" {{ 'selected' if q_cat==c.id|string else '' }}>
               🔴 {{ c.name }}
             </option>
           {% endfor %}
@@ -40,11 +38,24 @@
       </select>
     </div>
 
-    <!-- Actions -->
-    <div class="col-md-2">
+    <!-- Sort by -->
+    <div class="col-12 col-md-3">
+      <select class="form-select" name="sort" aria-label="Sort by">
+        <option value="" disabled {{ '' if q_sort else 'selected' }}>--Sort by--</option>
+        <option value="date_desc"   {{ 'selected' if q_sort=='date_desc' else '' }}>Terbaru</option>
+        <option value="date_asc"    {{ 'selected' if q_sort=='date_asc' else '' }}>Terlama</option>
+        <option value="amount_desc" {{ 'selected' if q_sort=='amount_desc' else '' }}>Nominal tertinggi</option>
+        <option value="amount_asc"  {{ 'selected' if q_sort=='amount_asc' else '' }}>Nominal terendah</option>
+      </select>
+    </div>
+
+    <!-- Tombol Filter: panjang (w-100) -->
+    <div class="col-12 col-md-2">
       <button type="submit" class="btn btn-primary w-100">Filter</button>
     </div>
-    <div class="col-md-2">
+
+    <!-- Baris 2: Tambah transaksi (full width di bawah) -->
+    <div class="col-12">
       <a class="btn btn-outline-secondary w-100" href="{{ url_for('add_form') }}">
         Tambah transaksi
       </a>
@@ -55,36 +66,47 @@
 <!-- ========== Tabel riwayat ========== -->
 <div class="card-soft">
   <div class="table-responsive">
-    <table class="table table-hover align-middle">
+    <table class="table table-hover align-middle table-stacked">
       <thead>
         <tr>
-          <th>Tanggal</th>
-          <th>Jenis</th>
-          <th>Kategori</th>
-          <th>Nominal</th>
-          <th>Metode</th>
-          <th>Keterangan</th>
-          <th>Aksi</th>
+          <th scope="col">Tanggal</th>
+          <th scope="col">Jenis</th>
+          <th scope="col">Kategori</th>
+          <th scope="col">Nominal</th>
+          <th scope="col" class="d-none d-md-table-cell">Metode</th>
+          <th scope="col" class="d-none d-md-table-cell">Keterangan</th>
+          <th scope="col">Aksi</th>
         </tr>
       </thead>
       <tbody>
         {% for r in rows %}
           <tr>
-            <td>{{ r.date }}</td>
-            <td class="{{ 'text-danger' if r.type=='expense' else 'text-success' }}">{{ r.type }}</td>
-            <td>{{ r.category }}</td>
-            <td>{{ r.amount|money }}</td>
-            <td>{{ r.payment_method }}</td>
-            <td>{{ r.keterangan }}</td>
-            <td class="text-nowrap">
-              <a class="btn btn-sm btn-outline-primary"
-                 href="{{ url_for('edit_form', trx_id=r.id) }}">Edit</a>
-              <form method="post"
-                    action="{{ url_for('delete_trx', trx_id=r.id) }}"
-                    class="d-inline"
-                    onsubmit="return confirm('Hapus transaksi ini?')">
-                <button class="btn btn-sm btn-outline-danger">Hapus</button>
-              </form>
+            <td data-label="Tanggal">{{ r.date }}</td>
+            <td data-label="Jenis" class="{{ 'text-danger' if r.type=='expense' else 'text-success' }}">{{ r.type }}</td>
+            <td data-label="Kategori">{{ r.category }}</td>
+            <td data-label="Nominal">{{ r.amount|money }}</td>
+
+            <!-- Desktop only -->
+            <td class="d-none d-md-table-cell" data-label="Metode">{{ r.payment_method }}</td>
+            <td class="d-none d-md-table-cell" data-label="Keterangan">{{ r.keterangan }}</td>
+
+            <!-- Aksi -->
+            <td class="text-nowrap action-cell">
+              <button type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#txModal"
+                      data-id="{{ r.id }}"
+                      data-date="{{ r.date }}"
+                      data-type="{{ r.type }}"
+                      data-category="{{ r.category }}"
+                      data-amount="{{ r.amount|money }}"
+                      data-payment="{{ r.payment_method }}"
+                      data-notes="{{ (r.keterangan or '-')|e }}"
+                      data-edit="{{ url_for('edit_form', trx_id=r.id) }}"
+                      data-delete="{{ url_for('delete_trx', trx_id=r.id) }}">
+                Detail
+              </button>
             </td>
           </tr>
         {% endfor %}
@@ -103,41 +125,92 @@
     <ul class="pagination">
       {% for i in range(1, pages+1) %}
         <li class="page-item {{ 'active' if i==page else '' }}">
-          <a class="page-link"
-             href="{{ url_for('history', page=i, type=q_type, category_id=q_cat) }}">{{ i }}</a>
+          {% if q_sort %}
+            <a class="page-link"
+               href="{{ url_for('history', page=i, type=q_type, category_id=q_cat, sort=q_sort) }}">{{ i }}</a>
+          {% else %}
+            <a class="page-link"
+               href="{{ url_for('history', page=i, type=q_type, category_id=q_cat) }}">{{ i }}</a>
+          {% endif %}
         </li>
       {% endfor %}
     </ul>
   </nav>
 </div>
 
-<!-- ========== Script: sinkronisasi filter ========== -->
+<!-- ===== Modal Global: Detail Transaksi ===== -->
+<div class="modal fade" id="txModal" tabindex="-1" aria-labelledby="txLabel" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="txLabel">Detail Transaksi</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <dl class="row mb-0">
+          <dt class="col-5">Tanggal</dt>     <dd class="col-7" id="mDate">-</dd>
+          <dt class="col-5">Jenis</dt>       <dd class="col-7" id="mType">-</dd>
+          <dt class="col-5">Kategori</dt>    <dd class="col-7" id="mCategory">-</dd>
+          <dt class="col-5">Nominal</dt>     <dd class="col-7" id="mAmount">-</dd>
+          <dt class="col-5">Metode</dt>      <dd class="col-7" id="mPayment">-</dd>
+          <dt class="col-5">Keterangan</dt>  <dd class="col-7" id="mNotes">-</dd>
+        </dl>
+      </div>
+      <div class="modal-footer">
+        <a id="mEdit" href="#" class="btn btn-outline-primary">Edit</a>
+        <form id="mDeleteForm" method="post" action="#" class="d-inline"
+              onsubmit="return confirm('Hapus transaksi ini?')">
+          <button class="btn btn-outline-danger">Hapus</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== filter kategori & isi modal ========== -->
 <script>
   (function () {
+    // 1) Sinkronisasi filter kategori terhadap jenis
     const typeSel = document.getElementById('typeFilter');
     const catSel  = document.getElementById('catFilter');
 
     function filterCategories() {
       const t = (typeSel.value || '').toLowerCase(); // '' | 'income' | 'expense'
-      // reset ke "Semua kategori" setiap ganti jenis
-      catSel.selectedIndex = 0;
+      // Jangan reset pilihan user saat initial render kalau q_cat sudah ada
+      if (!('{{ q_cat }}')) catSel.selectedIndex = 0;
 
-      // tampilkan hanya opsi yang sesuai (atau semua jika t kosong)
       for (const opt of catSel.options) {
-        if (opt.value === '') { // "Semua kategori"
-          opt.hidden = false;
-          opt.disabled = false;
-          continue;
-        }
+        if (opt.value === '') { opt.hidden = false; opt.disabled = false; continue; }
         const ok = !t || (opt.dataset.type === t);
-        opt.hidden   = !ok;
-        opt.disabled = !ok;
+        opt.hidden = !ok; opt.disabled = !ok;
       }
     }
-
     typeSel.addEventListener('change', filterCategories);
-    // inisialisasi sesuai nilai query saat ini
-    filterCategories();
+    filterCategories(); // inisialisasi sesuai query saat ini
+
+    // 2) Isi modal global saat akan ditampilkan
+    const modalEl = document.getElementById('txModal');
+    if (modalEl) {
+      modalEl.addEventListener('show.bs.modal', function (ev) {
+        const btn = ev.relatedTarget;
+        if (!btn) return;
+        const set = (id, val) => {
+          const el = modalEl.querySelector('#' + id);
+          if (el) el.textContent = (val && val !== 'None') ? val : '-';
+        };
+        set('mDate',     btn.getAttribute('data-date'));
+        set('mType',     btn.getAttribute('data-type'));
+        set('mCategory', btn.getAttribute('data-category'));
+        set('mAmount',   btn.getAttribute('data-amount'));
+        set('mPayment',  btn.getAttribute('data-payment'));
+        set('mNotes',    btn.getAttribute('data-notes'));
+
+        const editA = modalEl.querySelector('#mEdit');
+        const delF  = modalEl.querySelector('#mDeleteForm');
+        if (editA) editA.href  = btn.getAttribute('data-edit');
+        if (delF)  delF.action = btn.getAttribute('data-delete');
+      });
+    }
   })();
 </script>
 

@@ -489,6 +489,28 @@ def delete_trx(trx_id):
 def history():
     q_type = (request.args.get("type") or "").strip()
     q_cat  = (request.args.get("category_id") or "").strip()
+    # --- SORTING ---
+    # ambil raw tanpa default; biarkan kosong jika tidak ada
+    q_sort_raw = (request.args.get("sort") or "").strip()
+
+    order_map = {
+        "date_desc":        "t.date DESC, t.id DESC",
+        "date_asc":         "t.date ASC, t.id ASC",
+        "amount_desc":      "t.amount DESC, t.id DESC",
+        "amount_asc":       "t.amount ASC, t.id ASC",
+        "category_asc":     "c.name ASC, t.date DESC, t.id DESC",
+        "category_desc":    "c.name DESC, t.date DESC, t.id DESC",
+        "payment_asc":      "t.account ASC, t.date DESC, t.id DESC",
+        "payment_desc":     "t.account DESC, t.date DESC, t.id DESC",
+        "type_income_first":  "CASE WHEN t.type='income' THEN 0 ELSE 1 END, t.date DESC, t.id DESC",
+        "type_expense_first": "CASE WHEN t.type='expense' THEN 0 ELSE 1 END, t.date DESC, t.id DESC",
+    }
+
+    # q_sort untuk template: validasi whitelist; kalau invalid/kosong -> ""
+    q_sort = q_sort_raw if q_sort_raw in order_map else ""
+
+    # ORDER BY untuk query: kalau q_sort kosong -> pakai default date_desc
+    order_sql = order_map.get(q_sort or "date_desc")
 
     if q_type not in ("income", "expense"):
         q_type = ""
@@ -538,7 +560,7 @@ def history():
             FROM transactions t
             LEFT JOIN categories c ON c.id = t.category_id
             WHERE {where_clause}
-            ORDER BY t.date DESC, t.id DESC
+            ORDER BY {order_sql}
             LIMIT ? OFFSET ?
             """,
             (*params, per, offset)
@@ -550,6 +572,7 @@ def history():
         categories=[dict(c) for c in cats],
         q_type=q_type,
         q_cat=q_cat,
+        q_sort=q_sort, 
         page=page,
         pages=pages,
         title="Riwayat",

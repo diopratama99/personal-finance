@@ -54,7 +54,7 @@
   <div class="col-lg-8">
     <div class="card-soft h-100">
       <h6 class="mb-3">Grafik Pengeluaran per Kategori</h6>
-      <div class="chart-box">
+      <div class="chart-box" id="expenseChartBox">
         <canvas id="expenseChart" aria-label="Grafik pengeluaran per kategori" role="img"></canvas>
       </div>
     </div>
@@ -72,7 +72,10 @@
         <span>{{ b.spent|money }} / {{ b.amount|money }}</span>
       </div>
       <div class="progress budget" aria-label="Progress budget {{ b.category }}">
-        <div class="progress-bar {{ 'bg-danger' if pct>100 else 'bg-success' }}" role="progressbar" style="width: {{ [pct,150]|min }}%" aria-valuenow="{{ pct|round|int }}" aria-valuemin="0" aria-valuemax="150"></div>
+        <div class="progress-bar {{ 'bg-danger' if pct>100 else 'bg-success' }}"
+             role="progressbar"
+             style="width: {{ [pct,150]|min }}%"
+             aria-valuenow="{{ pct|round|int }}" aria-valuemin="0" aria-valuemax="150"></div>
       </div>
     </div>
   {% endfor %}
@@ -84,20 +87,28 @@
 <div class="card-soft mt-3">
   <h6 class="mb-3">10 Transaksi Terakhir</h6>
   <div class="table-responsive">
-    <table class="table table-hover align-middle">
+    <table class="table table-hover align-middle table-stacked">
       <thead>
-        <tr><th>Tanggal</th><th>Jenis</th><th>Kategori</th><th>Nominal</th><th>Metode</th><th>Keterangan</th><th>Catatan</th></tr>
+        <tr>
+          <th scope="col">Tanggal</th>
+          <th scope="col">Jenis</th>
+          <th scope="col">Kategori</th>
+          <th scope="col">Nominal</th>
+          <th scope="col" class="d-none d-md-table-cell">Metode</th>
+          <th scope="col" class="d-none d-md-table-cell">Keterangan</th>
+          <th scope="col" class="d-none d-md-table-cell">Catatan</th>
+        </tr>
       </thead>
       <tbody>
         {% for t in latest %}
         <tr>
-          <td>{{ t.date }}</td>
-          <td class="{{ 'text-success' if t.type=='income' else 'text-danger' }}">{{ t.type }}</td>
-          <td>{{ t.category }}</td>
-          <td>{{ t.amount|money }}</td>
-          <td>{{ t.payment_method or '-' }}</td>
-          <td>{{ t.keterangan or '-' }}</td>
-          <td>{{ t.notes or '-' }}</td>
+          <td data-label="Tanggal">{{ t.date }}</td>
+          <td data-label="Jenis" class="{{ 'text-success' if t.type=='income' else 'text-danger' }}">{{ t.type }}</td>
+          <td data-label="Kategori">{{ t.category }}</td>
+          <td data-label="Nominal">{{ t.amount|money }}</td>
+          <td data-label="Metode" class="d-none d-md-table-cell">{{ t.payment_method or '-' }}</td>
+          <td data-label="Keterangan" class="d-none d-md-table-cell">{{ t.keterangan or '-' }}</td>
+          <td data-label="Catatan" class="d-none d-md-table-cell">{{ t.notes or '-' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -123,9 +134,7 @@
       function tick(t){
         const p = Math.min(1, (t - t0) / dur);
         const val = Math.round(start + (target - start) * p);
-        // Format pakai locale ID
         const formatted = val.toLocaleString('id-ID');
-        // Ganti angka di dalam teks yang ada labelnya
         el.innerHTML = el.innerHTML.replace(/: .+$/, `: Rp ${formatted}`);
         if (p < 1) requestAnimationFrame(tick);
       }
@@ -135,11 +144,11 @@
 
   function renderExpenseChart() {
     const canvas = document.getElementById('expenseChart');
-    if (!canvas || !window.Chart) return;
+    const box = document.getElementById('expenseChartBox');
+    if (!box) return;
 
     // Data dari server (aman saat kosong)
     const raw = {{ (spend_by_cat if spend_by_cat is defined else [])|tojson }};
-    const ctx = canvas.getContext('2d');
 
     // Hapus chart lama bila ada
     if (expenseChartInstance) {
@@ -147,18 +156,20 @@
       expenseChartInstance = null;
     }
 
-    if (Array.isArray(raw) && raw.length > 0) {
+    // Bersihkan placeholder jika ada
+    const prevEmpty = box.querySelector('.chart-empty');
+    if (prevEmpty) prevEmpty.remove();
+
+    if (canvas && Array.isArray(raw) && raw.length > 0 && window.Chart) {
+      const ctx = canvas.getContext('2d');
       const labels = raw.map(r => r.category);
       const values = raw.map(r => Number(r.total) || 0);
 
-      const bg = (function(){
-        if (window.chartGradient) return window.chartGradient(ctx, canvas);
-        const rgb = getComputedStyle(document.documentElement).getPropertyValue('--chart-bar').trim() || '45,156,219';
-        const g = ctx.createLinearGradient(0,0,0,canvas.height);
-        g.addColorStop(0, `rgba(${rgb}, .55)`);
-        g.addColorStop(1, `rgba(${rgb}, .15)`);
-        return g;
-      })();
+      const rgb = getComputedStyle(document.documentElement)
+                  .getPropertyValue('--chart-bar').trim() || '45,156,219';
+      const bg = ctx.createLinearGradient(0,0,0,canvas.height);
+      bg.addColorStop(0, `rgba(${rgb}, .55)`);
+      bg.addColorStop(1, `rgba(${rgb}, .15)`);
 
       expenseChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -189,17 +200,17 @@
         }
       });
     } else {
-      // Tampilkan placeholder bila tidak ada data
+      // Tampilkan placeholder bila tidak ada data (tanpa merusak container)
       const empty = document.createElement('div');
-      empty.className = 'text-muted d-flex align-items-center justify-content-center h-100';
+      empty.className = 'chart-empty text-muted d-flex align-items-center justify-content-center h-100';
       empty.textContent = 'Tidak ada data pengeluaran pada periode ini.';
-      canvas.parentElement.replaceWith(empty);
+      box.innerHTML = ''; // kosongkan box lalu taruh placeholder
+      box.appendChild(empty);
     }
   }
 
-  // Hook dipanggil dari base.html
-  window.pageInit = function(fromBFCache) {
-    // Re-render chart & animasi pada load biasa maupun saat kembali dari BFCache
+  // Dipanggil dari base.html (on page enter)
+  window.pageInit = function(/*fromBFCache*/) {
     renderExpenseChart();
     runCountUp();
   };
