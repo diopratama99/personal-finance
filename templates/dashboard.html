@@ -103,8 +103,8 @@
         {% for t in latest %}
         <tr>
           <td data-label="Tanggal">{{ t.date }}</td>
-          <td data-label="Jenis" class="{{ 'text-success' if t.type=='income' else 'text-danger' }}">{{ t.type }}</td>
-          <td data-label="Kategori">{{ t.category }}</td>
+          <td data-label="Jenis" class="{{ 'text-success' if t.type=='income' else 'text-danger' }}">{{ t.type | type_label }}</td>
+          <td data-label="Kategori">{{ (t.category_emoji ~ ' ') if t.category_emoji else '' }}{{ t.category }}</td>
           <td data-label="Nominal">{{ t.amount|money }}</td>
           <td data-label="Metode" class="d-none d-md-table-cell">{{ t.payment_method or '-' }}</td>
           <td data-label="Keterangan" class="d-none d-md-table-cell">{{ t.keterangan or '-' }}</td>

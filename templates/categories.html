@@ -1,5 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
+
+<!-- Tambah Kategori (dipindah ke atas) -->
+<div class="card-soft mb-3">
+  <h6 class="mb-2">Tambah Kategori</h6>
+  <form method="post" class="row g-2" action="{{ url_for('categories_add') }}">
+    <div class="col-md-3">
+      <select name="type" class="form-select" required>
+        <option value="income">Pemasukan</option>
+        <option value="expense" selected>Pengeluaran</option>
+      </select>
+    </div>
+    <div class="col-md-5">
+      <input name="name" class="form-control" placeholder="Nama kategori baru" required>
+    </div>
+    <div class="col-md-2">
+      <input name="emoji" class="form-control" placeholder="Emoji" maxlength="4">
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary w-100">Tambah</button>
+    </div>
+  </form>
+</div>
+
 <div class="row g-3">
   <div class="col-lg-6">
     <div class="card-soft h-100">
@@ -7,7 +30,15 @@
       <ul class="list-group list-group-flush">
         {% for c in income %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
-            {{ c.name }} <span class="badge rounded-pill text-bg-success">income</span>
+            <div>
+              <span class="me-1">{{ c.emoji or '' }}</span>
+              {{ c.name }}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge rounded-pill text-bg-success">Pemasukan</span>
+              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#catModal"
+                      data-id="{{ c.id }}" data-name="{{ c.name }}" data-emoji="{{ c.emoji or '' }}">Edit</button>
+            </div>
           </li>
         {% endfor %}
       </ul>
@@ -19,29 +50,63 @@
       <ul class="list-group list-group-flush">
         {% for c in expense %}
           <li class="list-group-item d-flex justify-content-between align-items-center">
-            {{ c.name }} <span class="badge rounded-pill text-bg-danger">expense</span>
+            <div>
+              <span class="me-1">{{ c.emoji or '' }}</span>
+              {{ c.name }}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge rounded-pill text-bg-danger">Pengeluaran</span>
+              <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#catModal"
+                      data-id="{{ c.id }}" data-name="{{ c.name }}" data-emoji="{{ c.emoji or '' }}">Edit</button>
+            </div>
           </li>
         {% endfor %}
       </ul>
     </div>
   </div>
+  
 </div>
 
-<div class="card-soft mt-3">
-  <h6 class="mb-2">Tambah Kategori</h6>
-  <form method="post" class="row g-2" action="{{ url_for('categories_add') }}">
-    <div class="col-md-3">
-      <select name="type" class="form-select" required>
-        <option value="income">income</option>
-        <option value="expense" selected>expense</option>
-      </select>
-    </div>
-    <div class="col-md-6">
-      <input name="name" class="form-control" placeholder="Nama kategori baru" required>
-    </div>
-    <div class="col-md-3">
-      <button class="btn btn-primary w-100">Tambah</button>
-    </div>
-  </form>
+ 
+
+<!-- Modal Edit Kategori -->
+<div class="modal fade" id="catModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" method="post" id="catForm">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Kategori</h5>
+        <button class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body row g-2">
+        <div class="col-8">
+          <label class="form-label">Nama</label>
+          <input name="name" id="catName" class="form-control" required>
+        </div>
+        <div class="col-4">
+          <label class="form-label">Emoji</label>
+          <input name="emoji" id="catEmoji" class="form-control" maxlength="4" placeholder="😀">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary">Simpan</button>
+      </div>
+    </form>
+  </div>
 </div>
+
+<script>
+  // Prefill modal edit kategori
+  document.addEventListener('show.bs.modal', function(e){
+    const m = e.target;
+    if(m.id !== 'catModal') return;
+    const btn = e.relatedTarget;
+    const id = btn?.getAttribute('data-id');
+    const name = btn?.getAttribute('data-name') || '';
+    const emoji = btn?.getAttribute('data-emoji') || '';
+    const form = document.getElementById('catForm');
+    if(form){ form.action = '/categories/edit/' + encodeURIComponent(id); }
+    document.getElementById('catName').value = name;
+    document.getElementById('catEmoji').value = emoji;
+  });
+</script>
 {% endblock %}

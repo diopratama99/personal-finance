@@ -75,6 +75,10 @@
              href="{{ url_for('budgets_page') }}">
             📊 Budget
           </a>
+          <a class="list-group-item menu-link {{ 'active' if ep=='savings_page' else '' }}"
+             href="{{ url_for('savings_page') }}">
+            🏦 Tabungan
+          </a>
           <a class="list-group-item menu-link {{ 'active' if ep=='import_export' else '' }}"
              href="{{ url_for('import_export') }}">
             🔁 Import/Export
@@ -99,6 +103,7 @@
       <a class="chip chip-primary" href="{{ url_for('add_form') }}">Tambah transaksi</a>
       <a class="chip" href="{{ url_for('categories_page') }}">Kategori</a>
       <a class="chip" href="{{ url_for('budgets_page') }}">Budget</a>
+      <a class="chip" href="{{ url_for('savings_page') }}">Tabungan</a>
     </div>
   </div>
   {% endif %}
@@ -123,19 +128,7 @@
       {% endif %}
     {% endwith %}
 
-    <!-- Alerts (opsional) -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="container mb-3">
-          {% for cat, msg in messages %}
-            <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
-              {{ msg }}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
+    {# Hapus alert duplikat agar hanya toast merah/hijau yang tampil #}
 
     {% block content %}{% endblock %}
   </main>

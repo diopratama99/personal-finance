@@ -7,6 +7,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib import colors
 import datetime as dt
 
 
@@ -62,6 +63,137 @@ def ensure_favorites_table():
 # panggil saat startup
 ensure_favorites_table()
 
+# === Savings bootstrap (tabel untuk Tab Tabungan) ===
+def ensure_savings_tables():
+    with db() as con:
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS savings_auto_transfers(
+                user_id INTEGER NOT NULL,
+                month TEXT NOT NULL,
+                amount REAL NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY(user_id, month),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS savings_goals(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                target_amount REAL NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                achieved_at TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS savings_allocations(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                goal_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                date TEXT NOT NULL,
+                note TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (goal_id) REFERENCES savings_goals(id)
+            )
+            """
+        )
+
+        # Pastikan kolom archived_at ada pada savings_goals (untuk arsip)
+        try:
+            cols = con.execute("PRAGMA table_info(savings_goals)").fetchall()
+            col_names = {c[1] for c in cols}
+            if "archived_at" not in col_names:
+                con.execute("ALTER TABLE savings_goals ADD COLUMN archived_at TEXT")
+        except Exception:
+            pass
+
+        # Tabel top-up manual
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS savings_manual_topups(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                month TEXT NOT NULL,
+                date TEXT NOT NULL,
+                amount REAL NOT NULL,
+                note TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
+
+        # Tambahkan kolom transaction_id jika belum ada (link ke tabel transactions)
+        try:
+            cols = con.execute("PRAGMA table_info(savings_manual_topups)").fetchall()
+            col_names = {c[1] for c in cols}
+            if "transaction_id" not in col_names:
+                con.execute("ALTER TABLE savings_manual_topups ADD COLUMN transaction_id INTEGER")
+        except Exception:
+            pass
+
+        # Tabel konsumsi tabungan permanen
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS savings_consumed(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                note TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
+
+ensure_savings_tables()
+
+# Pastikan kolom emoji pada categories ada (untuk ikon kategori)
+def ensure_categories_emoji_column():
+    with db() as con:
+        try:
+            cols = con.execute("PRAGMA table_info(categories)").fetchall()
+            col_names = {c[1] for c in cols}
+            if "emoji" not in col_names:
+                con.execute("ALTER TABLE categories ADD COLUMN emoji TEXT")
+        except Exception:
+            pass
+
+ensure_categories_emoji_column()
+
+# Isi emoji default untuk kategori bawaan jika belum ada
+DEFAULT_EMOJI = {
+    ("income", "Gaji"): "💼",
+    ("income", "Bonus"): "🎁",
+    ("income", "Investasi"): "📈",
+    ("income", "Freelance"): "🧑‍💻",
+    ("expense", "Makan"): "🍽️",
+    ("expense", "Transport"): "🚗",
+    ("expense", "Belanja"): "🛍️",
+    ("expense", "Hiburan"): "🎬",
+    ("expense", "Kesehatan"): "🩺",
+    ("expense", "Tagihan"): "🧾",
+    ("expense", "Lainnya"): "✨",
+}
+
+def backfill_default_category_emojis():
+    with db() as con:
+        for (t, name), emo in DEFAULT_EMOJI.items():
+            con.execute(
+                "UPDATE categories SET emoji=? WHERE type=? AND name=? AND (emoji IS NULL OR emoji='')",
+                (emo, t, name)
+            )
+
+backfill_default_category_emojis()
+
 # =============================================================================
 # Auth setup
 # =============================================================================
@@ -91,8 +223,13 @@ def seed_default_categories(user_id: int):
         for t, names in defaults.items():
             for n in names:
                 con.execute(
-                    "INSERT OR IGNORE INTO categories(user_id,type,name) VALUES (?,?,?)",
-                    (user_id, t, n)
+                    "INSERT OR IGNORE INTO categories(user_id,type,name,emoji) VALUES (?,?,?,?)",
+                    (user_id, t, n, DEFAULT_EMOJI.get((t, n)))
+                )
+                # update emoji jika baris sudah ada namun emoji kosong
+                con.execute(
+                    "UPDATE categories SET emoji=? WHERE user_id=? AND type=? AND name=? AND (emoji IS NULL OR emoji='')",
+                    (DEFAULT_EMOJI.get((t, n)), user_id, t, n)
                 )
 
 
@@ -111,6 +248,36 @@ def money(x):
     """Format angka sebagai Rupiah sederhana (tanpa symbol lokal)."""
     return f"Rp {x:,.0f}".replace(",", ".")
 app.jinja_env.filters["money"] = money
+
+# Format "YYYY-MM" menjadi "NamaBulan YYYY" (Indonesia)
+_MONTHS_ID = [
+    None,
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+]
+
+def month_indo(ym: str) -> str:
+    try:
+        if not ym or len(ym) < 7 or "-" not in ym:
+            return ym
+        y, m = ym.split("-")[:2]
+        mi = int(m)
+        name = _MONTHS_ID[mi] if 1 <= mi <= 12 else m
+        return f"{name} {y}"
+    except Exception:
+        return ym
+
+app.jinja_env.filters["month_indo"] = month_indo
+
+# Label jenis transaksi dalam Bahasa Indonesia
+def type_label(val: str) -> str:
+    if val == 'income':
+        return 'Pemasukan'
+    if val == 'expense':
+        return 'Pengeluaran'
+    return val or ''
+
+app.jinja_env.filters["type_label"] = type_label
 
 VALID_PAYMENTS = {"Transfer", "E-Wallet", "Tunai"}
 
@@ -241,6 +408,7 @@ def dashboard():
         latest = con.execute("""
             SELECT t.*,
                    COALESCE(c.name, '-') AS category,
+                   c.emoji AS category_emoji,
                    t.source_or_payee AS keterangan,
                    t.account AS payment_method
             FROM transactions t
@@ -555,6 +723,7 @@ def history():
             SELECT
                 t.*,
                 COALESCE(c.name, '-') AS category,
+                c.emoji AS category_emoji,
                 t.source_or_payee AS keterangan,
                 t.account AS payment_method
             FROM transactions t
@@ -607,15 +776,40 @@ def categories_page():
 def categories_add():
     type_ = request.form.get("type")
     name = (request.form.get("name") or "").strip()
+    emoji = (request.form.get("emoji") or "").strip()
     if not name or type_ not in ("income", "expense"):
         flash("Isi nama kategori dengan benar.")
         return redirect(url_for("categories_page"))
     with db() as con:
         try:
-            con.execute("INSERT INTO categories(user_id,type,name) VALUES (?,?,?)", (current_user.id, type_, name))
+            con.execute("INSERT INTO categories(user_id,type,name,emoji) VALUES (?,?,?,?)", (current_user.id, type_, name, emoji or None))
             flash("Kategori ditambahkan.")
         except sqlite3.IntegrityError:
             flash("Kategori sudah ada.")
+    return redirect(url_for("categories_page"))
+
+
+@app.post("/categories/edit/<int:cat_id>")
+@login_required
+def categories_edit(cat_id):
+    name = (request.form.get("name") or "").strip()
+    emoji = (request.form.get("emoji") or "").strip()
+    if not name:
+        flash("Nama kategori tidak boleh kosong.")
+        return redirect(url_for("categories_page"))
+    with db() as con:
+        row = con.execute("SELECT * FROM categories WHERE id=? AND user_id=?", (cat_id, current_user.id)).fetchone()
+        if not row:
+            flash("Kategori tidak ditemukan.")
+            return redirect(url_for("categories_page"))
+        try:
+            con.execute(
+                "UPDATE categories SET name=?, emoji=? WHERE id=? AND user_id=?",
+                (name, emoji or None, cat_id, current_user.id)
+            )
+            flash("Kategori diperbarui.")
+        except sqlite3.IntegrityError:
+            flash("Kategori dengan nama tersebut sudah ada.")
     return redirect(url_for("categories_page"))
 
 
@@ -664,6 +858,435 @@ def budgets_set():
 
 
 # =============================================================================
+# Savings (Tab Tabungan)
+# =============================================================================
+
+def ensure_autosavings_up_to_prev_month(user_id: int):
+    today = date.today()
+    prev_month = (today.replace(day=1) - relativedelta(days=1)).strftime("%Y-%m")
+
+    with db() as con:
+        row = con.execute(
+            "SELECT MIN(substr(date,1,7)) AS m FROM transactions WHERE user_id=?",
+            (user_id,)
+        ).fetchone()
+        first_trx_month = row["m"] if row else None
+        if not first_trx_month:
+            return
+
+        ym = datetime.strptime(first_trx_month + "-01", "%Y-%m-%d").date()
+        stop = datetime.strptime(prev_month + "-01", "%Y-%m-%d").date()
+
+        while ym <= stop:
+            ym_str = ym.strftime("%Y-%m")
+            totals = con.execute(
+                """
+                SELECT
+                  SUM(CASE WHEN type='income'  THEN amount ELSE 0 END) AS inc,
+                  SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) AS exp
+                FROM transactions
+                WHERE user_id=? AND substr(date,1,7)=?
+                """,
+                (user_id, ym_str)
+            ).fetchone()
+
+            inc = float(totals["inc"] or 0)
+            exp = float(totals["exp"] or 0)
+            net = inc - exp
+
+            if net > 0:
+                con.execute(
+                    """
+                    INSERT INTO savings_auto_transfers(user_id, month, amount)
+                    VALUES (?,?,?)
+                    ON CONFLICT(user_id, month) DO UPDATE SET amount=excluded.amount
+                    """,
+                    (user_id, ym_str, net)
+                )
+            else:
+                con.execute(
+                    "DELETE FROM savings_auto_transfers WHERE user_id=? AND month=?",
+                    (user_id, ym_str)
+                )
+
+            ym = (ym.replace(day=1) + relativedelta(months=1))
+
+
+@app.get("/savings")
+@login_required
+def savings_page():
+    ensure_autosavings_up_to_prev_month(current_user.id)
+    with db() as con:
+        total_auto = con.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM savings_auto_transfers WHERE user_id=?",
+            (current_user.id,)
+        ).fetchone()["t"]
+        total_manual = con.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM savings_manual_topups WHERE user_id=?",
+            (current_user.id,)
+        ).fetchone()["t"]
+
+        rows = con.execute(
+            """
+            SELECT g.id, g.name, g.target_amount, g.created_at, g.achieved_at, g.archived_at,
+                   COALESCE(SUM(a.amount),0) AS allocated
+            FROM savings_goals g
+            LEFT JOIN savings_allocations a ON a.goal_id=g.id AND a.user_id=g.user_id
+            WHERE g.user_id=?
+            GROUP BY g.id
+            ORDER BY g.created_at DESC
+            """,
+            (current_user.id,)
+        ).fetchall()
+
+        goals = [dict(r) for r in rows]
+        total_alloc = sum(float(r["allocated"]) for r in goals)
+        # konsumsi permanen (goal yang dihapus, dsb.)
+        total_consumed = con.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM savings_consumed WHERE user_id=?",
+            (current_user.id,)
+        ).fetchone()["t"]
+
+        # total masuk tabungan = auto + manual
+        total_in = float(total_auto) + float(total_manual)
+        # saldo tersedia = total in - (alokasi aktif/arsip + konsumsi permanen)
+        pot_available = total_in - (float(total_alloc) + float(total_consumed))
+
+        # Tandai achieved_at bila terpenuhi namun belum ditandai
+        achieved_ids = [g["id"] for g in goals if not g.get("achieved_at") and float(g["allocated"]) >= float(g["target_amount"]) ]
+        if achieved_ids:
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            for gid in achieved_ids:
+                con.execute(
+                    "UPDATE savings_goals SET achieved_at=? WHERE id=? AND user_id=?",
+                    (now, gid, current_user.id)
+                )
+
+        autosave_history = con.execute(
+            "SELECT month, amount FROM savings_auto_transfers WHERE user_id=? ORDER BY month DESC LIMIT 12",
+            (current_user.id,)
+        ).fetchall()
+
+        # Sisa income bulan berjalan yang tersedia (income - expense)
+        curr_month = date.today().strftime("%Y-%m")
+        month_totals = con.execute(
+            """
+            SELECT
+              SUM(CASE WHEN type='income' THEN amount ELSE 0 END) AS inc,
+              SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) AS exp
+            FROM transactions
+            WHERE user_id=? AND substr(date,1,7)=?
+            """,
+            (current_user.id, curr_month)
+        ).fetchone()
+        inc_m = float(month_totals["inc"] or 0)
+        exp_m = float(month_totals["exp"] or 0)
+        avail_current = max(0.0, inc_m - exp_m)
+
+        # Daftar top-up manual bulan berjalan
+        topups_current = con.execute(
+            "SELECT id, date, amount, note FROM savings_manual_topups WHERE user_id=? AND month=? ORDER BY date DESC, id DESC",
+            (current_user.id, curr_month)
+        ).fetchall()
+
+    # Kelompokkan goals
+    active_goals = []
+    archived_goals = []
+    for g in goals:
+        g["remaining"] = max(0.0, float(g["target_amount"]) - float(g["allocated"]))
+        if g.get("archived_at"):
+            archived_goals.append(g)
+        else:
+            active_goals.append(g)
+
+    any_achieved_active = any((float(g["allocated"]) >= float(g["target_amount"])) and (not g.get("archived_at")) for g in goals)
+    return render_template(
+        "savings.html",
+        pot_available=pot_available,
+        total_auto=total_in,
+        total_manual=total_manual,
+        total_alloc=(float(total_alloc) + float(total_consumed)),
+        active_goals=active_goals,
+        archived_goals=archived_goals,
+        any_achieved=any_achieved_active,
+        autosave_history=[dict(r) for r in autosave_history],
+        avail_current=avail_current,
+        topups_current=[dict(r) for r in topups_current],
+        title="Tabungan",
+        user_name=current_user.name,
+    )
+
+
+@app.post("/savings/topup")
+@login_required
+def savings_topup():
+    amount = request.form.get("amount")
+    note = (request.form.get("note") or "").strip()
+    try:
+        amt = float(amount)
+        if amt <= 0:
+            raise ValueError
+    except Exception:
+        flash("Nominal top up tidak valid.")
+        return redirect(url_for("savings_page"))
+
+    today = date.today()
+    month = today.strftime("%Y-%m")
+    with db() as con:
+        # Hitung sisa income bulan berjalan dan tolak jika melebihi
+        month_totals = con.execute(
+            """
+            SELECT
+              SUM(CASE WHEN type='income' THEN amount ELSE 0 END) AS inc,
+              SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) AS exp
+            FROM transactions
+            WHERE user_id=? AND substr(date,1,7)=?
+            """,
+            (current_user.id, month)
+        ).fetchone()
+        inc_m = float(month_totals["inc"] or 0); exp_m = float(month_totals["exp"] or 0)
+        avail_current = max(0.0, inc_m - exp_m)
+        if amt > avail_current + 1e-6:
+            flash(f"Nominal melebihi sisa income bulan ini: {money(avail_current)}")
+            return redirect(url_for("savings_page"))
+
+        # Pastikan kategori 'Tabungan' (expense) ada
+        con.execute(
+            "INSERT OR IGNORE INTO categories(user_id,type,name) VALUES (?,?,?)",
+            (current_user.id, 'expense', 'Tabungan')
+        )
+        cat_id = con.execute(
+            "SELECT id FROM categories WHERE user_id=? AND type='expense' AND name=?",
+            (current_user.id, 'Tabungan')
+        ).fetchone()["id"]
+
+        # Catat transaksi expense yang mengurangi income bulan ini
+        cur_tx = con.execute(
+            """
+            INSERT INTO transactions(user_id,date,type,category_id,amount,source_or_payee,account,notes)
+            VALUES (?,?,?,?,?,?,?,?)
+            """,
+            (current_user.id, today.isoformat(), 'expense', cat_id, amt, 'Top-up Tabungan', 'Transfer', note or None)
+        )
+        tx_id = cur_tx.lastrowid
+
+        con.execute(
+            "INSERT INTO savings_manual_topups(user_id,month,date,amount,note,transaction_id) VALUES (?,?,?,?,?,?)",
+            (current_user.id, month, today.isoformat(), amt, note or None, tx_id)
+        )
+    flash("Top up tabungan bulan ini disimpan.")
+    return redirect(url_for("savings_page"))
+
+
+@app.post("/savings/topup/delete/<int:topup_id>")
+@login_required
+def savings_topup_delete(topup_id):
+    today = date.today()
+    curr_month = today.strftime("%Y-%m")
+    with db() as con:
+        row = con.execute(
+            "SELECT id, user_id, month, amount, transaction_id FROM savings_manual_topups WHERE id=? AND user_id=?",
+            (topup_id, current_user.id)
+        ).fetchone()
+        if not row:
+            flash("Top-up tidak ditemukan.")
+            return redirect(url_for("savings_page"))
+        if row["month"] != curr_month:
+            flash("Hanya top-up bulan ini yang dapat dihapus.")
+            return redirect(url_for("savings_page"))
+
+        tx_id = row["transaction_id"]
+        if tx_id:
+            con.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tx_id, current_user.id))
+        con.execute("DELETE FROM savings_manual_topups WHERE id=? AND user_id=?", (topup_id, current_user.id))
+
+    flash("Top-up bulan ini dibatalkan dan dana dikembalikan ke sisa income bulan ini.")
+    return redirect(url_for("savings_page"))
+
+
+@app.post("/savings/goals")
+@login_required
+def savings_create_goal():
+    name = (request.form.get("name") or "").strip()
+    target = (request.form.get("target_amount") or "").strip()
+    try:
+        target_val = float(target)
+        if target_val <= 0:
+            raise ValueError
+    except Exception:
+        flash("Target harus angka > 0.")
+        return redirect(url_for("savings_page"))
+    if not name:
+        flash("Nama goal wajib diisi.")
+        return redirect(url_for("savings_page"))
+
+    with db() as con:
+        con.execute(
+            "INSERT INTO savings_goals(user_id,name,target_amount) VALUES (?,?,?)",
+            (current_user.id, name, target_val)
+        )
+    flash("Goal tabungan ditambahkan.")
+    return redirect(url_for("savings_page"))
+
+
+@app.post("/savings/allocate")
+@login_required
+def savings_allocate():
+    goal_id = request.form.get("goal_id")
+    amount = request.form.get("amount")
+    note = (request.form.get("note") or "").strip()
+
+    try:
+        gid = int(goal_id)
+        amt = float(amount)
+        if amt <= 0:
+            raise ValueError
+    except Exception:
+        flash("Alokasi tidak valid.")
+        return redirect(url_for("savings_page"))
+
+    with db() as con:
+        total_auto = con.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM savings_auto_transfers WHERE user_id=?",
+            (current_user.id,)
+        ).fetchone()["t"]
+        total_alloc = con.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM savings_allocations WHERE user_id=?",
+            (current_user.id,)
+        ).fetchone()["t"]
+        pot_available = float(total_auto) - float(total_alloc)
+
+        row = con.execute(
+            """
+            SELECT target_amount, archived_at,
+                   COALESCE((SELECT SUM(amount) FROM savings_allocations WHERE user_id=? AND goal_id=?),0) AS allocated
+            FROM savings_goals WHERE id=? AND user_id=?
+            """,
+            (current_user.id, gid, gid, current_user.id)
+        ).fetchone()
+        if not row:
+            flash("Goal tidak ditemukan.")
+            return redirect(url_for("savings_page"))
+        if row["archived_at"]:
+            flash("Goal sudah diarsipkan, tidak bisa dialokasikan.")
+            return redirect(url_for("savings_page"))
+
+        remaining = max(0.0, float(row["target_amount"]) - float(row["allocated"]))
+        allowed = min(pot_available, remaining)
+        if amt > allowed + 1e-6:
+            flash(f"Maksimal alokasi yang diperbolehkan: Rp {allowed:,.0f}".replace(',', '.'))
+            return redirect(url_for("savings_page"))
+
+        today_iso = date.today().isoformat()
+        con.execute(
+            "INSERT INTO savings_allocations(user_id,goal_id,amount,date,note) VALUES (?,?,?,?,?)",
+            (current_user.id, gid, amt, today_iso, note or None)
+        )
+
+    flash("Alokasi tersimpan.")
+    return redirect(url_for("savings_page"))
+
+
+@app.post("/savings/goals/<int:goal_id>/archive")
+@login_required
+def savings_archive(goal_id):
+    with db() as con:
+        ok = con.execute("SELECT 1 FROM savings_goals WHERE id=? AND user_id=?", (goal_id, current_user.id)).fetchone()
+        if not ok:
+            flash("Goal tidak ditemukan.")
+            return redirect(url_for("savings_page"))
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        con.execute("UPDATE savings_goals SET archived_at=? WHERE id=? AND user_id=?", (now, goal_id, current_user.id))
+    flash("Goal diarsipkan.")
+    return redirect(url_for("savings_page"))
+
+
+@app.post("/savings/goals/<int:goal_id>/unarchive")
+@login_required
+def savings_unarchive(goal_id):
+    with db() as con:
+        ok = con.execute("SELECT 1 FROM savings_goals WHERE id=? AND user_id=?", (goal_id, current_user.id)).fetchone()
+        if not ok:
+            flash("Goal tidak ditemukan.")
+            return redirect(url_for("savings_page"))
+        con.execute("UPDATE savings_goals SET archived_at=NULL WHERE id=? AND user_id=?", (goal_id, current_user.id))
+    flash("Goal dikembalikan ke daftar aktif.")
+    return redirect(url_for("savings_page"))
+
+
+@app.post("/savings/release")
+@login_required
+def savings_release():
+    goal_id = request.form.get("goal_id")
+    amount = request.form.get("amount")
+    note = (request.form.get("note") or "").strip()
+
+    try:
+        gid = int(goal_id)
+        amt = float(amount)
+        if amt <= 0:
+            raise ValueError
+    except Exception:
+        flash("Nominal pelepasan tidak valid.")
+        return redirect(url_for("savings_page"))
+
+    with db() as con:
+        ok = con.execute("SELECT 1 FROM savings_goals WHERE id=? AND user_id=?", (gid, current_user.id)).fetchone()
+        if not ok:
+            flash("Goal tidak ditemukan.")
+            return redirect(url_for("savings_page"))
+        row = con.execute(
+            "SELECT COALESCE((SELECT SUM(amount) FROM savings_allocations WHERE user_id=? AND goal_id=?),0) AS allocated",
+            (current_user.id, gid)
+        ).fetchone()
+        allocated = float(row["allocated"]) if row else 0.0
+        if amt > allocated + 1e-6:
+            flash("Tidak bisa melepas dana melebihi yang sudah dialokasikan.")
+            return redirect(url_for("savings_page"))
+
+        today_iso = date.today().isoformat()
+        con.execute(
+            "INSERT INTO savings_allocations(user_id,goal_id,amount,date,note) VALUES (?,?,?,?,?)",
+            (current_user.id, gid, -amt, today_iso, note or "Release dana")
+        )
+
+    flash("Dana dilepas kembali ke saldo tabungan.")
+    return redirect(url_for("savings_page"))
+
+
+@app.post("/savings/goals/<int:goal_id>/delete")
+@login_required
+def savings_goal_delete(goal_id):
+    with db() as con:
+        g = con.execute(
+            "SELECT id, name, archived_at FROM savings_goals WHERE id=? AND user_id=?",
+            (goal_id, current_user.id)
+        ).fetchone()
+        if not g:
+            flash("Goal tidak ditemukan.")
+            return redirect(url_for("savings_page"))
+        if not g["archived_at"]:
+            flash("Hanya goal yang sudah diarsipkan yang bisa dihapus.")
+            return redirect(url_for("savings_page"))
+        # Hitung total alokasi pada goal ini, lalu tandai sebagai konsumsi permanen
+        row = con.execute(
+            "SELECT COALESCE(SUM(amount),0) AS t FROM savings_allocations WHERE user_id=? AND goal_id=?",
+            (current_user.id, goal_id)
+        ).fetchone()
+        consumed = float(row["t"] or 0)
+        if consumed > 0:
+            note = f"Hapus goal: {g['name']}"
+            con.execute(
+                "INSERT INTO savings_consumed(user_id,amount,note) VALUES (?,?,?)",
+                (current_user.id, consumed, note)
+            )
+        # Hapus alokasi dan goal
+        con.execute("DELETE FROM savings_allocations WHERE user_id=? AND goal_id=?", (current_user.id, goal_id))
+        con.execute("DELETE FROM savings_goals WHERE id=? AND user_id=?", (goal_id, current_user.id))
+
+    flash("Goal dihapus. Dana yang telah dialokasikan dianggap terpakai.")
+    return redirect(url_for("savings_page"))
+
 # Export (Excel / PDF)
 # =============================================================================
 
@@ -714,49 +1337,88 @@ def export_pdf():
           ORDER BY t.date, t.id
         """, (current_user.id, start, end)).fetchall()
 
+    # Siapkan canvas
     bio = io.BytesIO()
     c = canvas.Canvas(bio, pagesize=A4)
     w, h = A4
-    y = h - 50
+    margin_l, margin_r, margin_t, margin_b = 32, 32, 36, 36
 
-    # header
-    c.setFont("Helvetica-Bold", 16); c.drawString(40, y, "Laporan Keuangan"); y -= 18
-    c.setFont("Helvetica", 10); c.drawString(40, y, f"Periode: {start} s.d. {end}   |   Dicetak: {datetime.now():%d/%m/%Y %H:%M}"); y -= 20
-    c.setFont("Helvetica-Bold", 12); c.drawString(40, y, f"Pendapatan: {money(totals['inc'] or 0)}"); y -= 16
-    c.drawString(40, y, f"Pengeluaran: {money(totals['exp'] or 0)}"); y -= 16
-    c.drawString(40, y, f"Saldo Bersih: {money((totals['inc'] or 0)-(totals['exp'] or 0))}"); y -= 24
+    def page_header():
+        # banner hijau di header
+        c.setFillColorRGB(0.082, 0.451, 0.278)  # ~ #157347
+        c.rect(0, h-28, w, 28, fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(margin_l, h-20, "Temanku — Laporan Keuangan")
 
-    # tabel
-    c.setFont("Helvetica-Bold", 11); c.drawString(40, y, "Detail Transaksi"); y -= 14
-    cols = ["Tanggal", "Jenis", "Kategori", "Nominal", "Payee", "Akun"]
-    xs = [40, 100, 150, 300, 380, 480]
+        c.setFillColor(colors.black)
+        y0 = h - 48
+        c.setFont("Helvetica", 9)
+        c.drawString(margin_l, y0, f"Periode: {start} s.d. {end}")
+        c.drawRightString(w - margin_r, y0, f"Dicetak: {datetime.now():%d/%m/%Y %H:%M}")
 
-    # header kolom
-    c.setFont("Helvetica-Bold", 9)
-    for x, col in zip(xs, cols):
-        c.drawString(x, y, col)
-    y -= 12
-    c.setFont("Helvetica", 9)
+        # Ringkasan angka
+        inc = float(totals['inc'] or 0); exp = float(totals['exp'] or 0); net = inc - exp
+        y1 = y0 - 16
+        c.setFont("Helvetica-Bold", 10); c.drawString(margin_l, y1, f"Pendapatan: {money(inc)}")
+        y1 -= 14; c.setFont("Helvetica", 10); c.drawString(margin_l, y1, f"Pengeluaran: {money(exp)}")
+        y1 -= 14; c.drawString(margin_l, y1, f"Saldo Bersih: {money(net)}")
+        return y1 - 18
 
-    for r in rows:
-        # page break + ulang header
-        if y < 60:
-            c.showPage(); y = h - 40
-            c.setFont("Helvetica-Bold", 9)
-            for x, col in zip(xs, cols):
-                c.drawString(x, y, col)
-            y -= 12
-            c.setFont("Helvetica", 9)
+    def table_header(y):
+        cols = ["Tanggal", "Jenis", "Kategori", "Nominal", "Keterangan", "Metode"]
+        # Pastikan total <= area konten (w - margin_l - margin_r = ~531pt)
+        widths = [66, 76, 110, 78, 156, 45]  # total = 531
+        x = margin_l
+        c.setFillColorRGB(0.94, 0.96, 0.99)
+        c.rect(margin_l, y-3, sum(widths), 16, fill=1, stroke=0)
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica-Bold", 9)
+        for col, wcol in zip(cols, widths):
+            c.drawString(x, y, col)
+            x += wcol
+        return y - 14, widths
 
-        c.drawString(xs[0], y, r["date"])
-        c.drawString(xs[1], y, r["type"])
-        c.drawString(xs[2], y, r["category"])
-        c.drawRightString(xs[3], y, money(r["amount"]))
-        c.drawString(xs[4], y, (r["payee"] or "")[:24])
-        c.drawString(xs[5], y, (r["acc"] or "")[:18])
-        y -= 12
+    def table_row(y, widths, r, idx):
+        # garis latar selang-seling
+        if idx % 2 == 1:
+            c.setFillColorRGB(0.98, 0.98, 0.985)
+            c.rect(margin_l, y-2, sum(widths), 12, fill=1, stroke=0)
+        c.setFillColor(colors.black)
+        c.setFont("Helvetica", 9)
+        x = margin_l
+        c.drawString(x, y, r["date"]); x += widths[0]
+        tipe = 'Pemasukan' if r["type"] == 'income' else ('Pengeluaran' if r["type"] == 'expense' else (r["type"] or ''))
+        c.drawString(x, y, tipe); x += widths[1]
+        c.drawString(x, y, (r["category"] or '')[:20]); x += widths[2]
+        # Nominal rata kiri
+        c.drawString(x, y, money(r["amount"]))
+        x += widths[3]
+        c.drawString(x, y, (r["payee"] or "")[:28]); x += widths[4]
+        c.drawString(x, y, (r["acc"] or "")[:10])
+        return y - 12
 
-    # penting: jangan showPage() lagi di akhir, agar tidak ada halaman kosong
+    def page_footer():
+        c.setFont("Helvetica", 8)
+        c.setFillColor(colors.grey)
+        c.drawRightString(w - margin_r, margin_b - 10, f"Halaman {c.getPageNumber()}")
+        c.setFillColor(colors.black)
+
+    # Gambar header pertama
+    y = page_header()
+    c.setFont("Helvetica-Bold", 11); c.drawString(margin_l, y, "Detail Transaksi"); y -= 14
+    y, widths = table_header(y)
+
+    # Render baris
+    for idx, r in enumerate(rows):
+        if y < margin_b + 24:
+            page_footer(); c.showPage()
+            y = page_header()
+            c.setFont("Helvetica-Bold", 11); c.drawString(margin_l, y, "Detail Transaksi"); y -= 14
+            y, widths = table_header(y)
+        y = table_row(y, widths, r, idx)
+
+    page_footer()
     c.save(); bio.seek(0)
     return send_file(
         bio,
@@ -778,7 +1440,7 @@ def api_categories():
         t = "expense"
     with db() as con:
         rows = con.execute(
-            "SELECT id, name FROM categories WHERE user_id=? AND type=? ORDER BY name",
+            "SELECT id, name, emoji FROM categories WHERE user_id=? AND type=? ORDER BY name",
             (current_user.id, t)
         ).fetchall()
     return jsonify([dict(r) for r in rows])

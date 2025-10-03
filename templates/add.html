@@ -22,8 +22,8 @@
       <label for="typeSelect" class="form-label">Jenis</label>
       <select class="form-select" name="type" id="typeSelect" required>
         <option value="" {{ 'selected' if not default_type else '' }} disabled>— pilih jenis —</option>
-        <option value="income"  {{ 'selected' if default_type=='income'  else '' }}>income</option>
-        <option value="expense" {{ 'selected' if default_type=='expense' else '' }}>expense</option>
+        <option value="income"  {{ 'selected' if default_type=='income'  else '' }}>Pemasukan</option>
+        <option value="expense" {{ 'selected' if default_type=='expense' else '' }}>Pengeluaran</option>
       </select>
     </div>
 
@@ -38,7 +38,7 @@
       >
         <option value="" selected disabled>— pilih kategori —</option>
         {% for c in categories %}
-          <option value="{{ c.id }}">{{ c.name }}</option>
+          <option value="{{ c.id }}">{{ (c.emoji ~ ' ') if c.emoji else '' }}{{ c.name }}</option>
         {% endfor %}
       </select>
       <div class="form-text">Kelola di menu Kategori jika belum ada.</div>
@@ -168,7 +168,7 @@
       const data = await res.json();
       catSel.innerHTML =
         PLACEHOLDER +
-        data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        data.map(c => `<option value="${c.id}">${c.emoji ? (c.emoji + ' ') : ''}${c.name}</option>`).join('');
       catSel.disabled = false;     // penting: aktifkan setelah sukses
       catSel.value = '';           // paksa pilih ulang sesuai jenis
     } catch (e) {
@@ -212,10 +212,13 @@
     }
     if (type === 'income') {
       favBadge.className = 'badge text-bg-success ms-md-2';
-      favBadge.textContent = 'income';
-    } else {
+      favBadge.textContent = 'Pemasukan';
+    } else if (type === 'expense') {
       favBadge.className = 'badge text-bg-danger ms-md-2';
-      favBadge.textContent = 'expense';
+      favBadge.textContent = 'Pengeluaran';
+    } else {
+      favBadge.className = 'badge d-none ms-md-2';
+      favBadge.textContent = '';
     }
   }
 

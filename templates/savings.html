@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+{% block content %}
+
+  {% if any_achieved %}
+    <div class="alert alert-success">
+      Selamat {{ user_name }}, kamu telah berhasil mencapai target tabunganmu 🎉
+    </div>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card-soft">
+        <div class="fw-semibold text-muted mb-1">Total Masuk</div>
+        <div class="display-6">{{ total_auto|money }}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-soft">
+        <div class="fw-semibold text-muted mb-1">Dialokasikan</div>
+        <div class="display-6">{{ total_alloc|money }}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card-soft">
+        <div class="fw-semibold text-muted mb-1">Saldo Tersedia</div>
+        <div class="display-6">{{ pot_available|money }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-5">
+      <div class="card-soft mb-3">
+        <h5 class="mb-3">Buat Goal Tabungan</h5>
+        <form method="post" action="{{ url_for('savings_create_goal') }}" class="row g-2">
+          <div class="col-12">
+            <label class="form-label">Nama Goal</label>
+            <input type="text" name="name" class="form-control" placeholder="Contoh: Beli HP Baru" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Target</label>
+            <div class="input-group">
+              <span class="input-group-text">Rp</span>
+              <input type="number" step="1000" min="0" inputmode="numeric" name="target_amount" class="form-control" placeholder="1000" required title="Gunakan kelipatan 1000">
+            </div>
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-primary" type="submit">Tambah Goal</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card-soft">
+        <h5 class="mb-3">Alokasikan Saldo</h5>
+        <form method="post" action="{{ url_for('savings_allocate') }}" class="row g-2">
+          <div class="col-12">
+            <label class="form-label">Pilih Goal</label>
+            <select class="form-select" name="goal_id" required>
+              <option value="" disabled selected>Pilih...</option>
+              {% for g in active_goals %}
+                <option value="{{ g.id }}">{{ g.name }} ({{ g.allocated|money }} / {{ g.target_amount|money }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Nominal</label>
+            <div class="input-group">
+              <span class="input-group-text">Rp</span>
+              <input type="number" step="1000" min="0" inputmode="numeric" name="amount" class="form-control" placeholder="1000" required title="Gunakan kelipatan 1000">
+            </div>
+            <div class="form-text">Saldo tersedia: {{ pot_available|money }}</div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Catatan (opsional)</label>
+            <input type="text" name="note" class="form-control" placeholder="Sumber atau catatan alokasi">
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-primary" type="submit">Simpan Alokasi</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card-soft mt-3">
+        <h5 class="mb-3">Tambah ke Tabungan (bulan ini)</h5>
+        <form method="post" action="{{ url_for('savings_topup') }}" class="row g-2">
+          <div class="col-12">
+            <label class="form-label">Nominal</label>
+            <div class="input-group">
+              <span class="input-group-text">Rp</span>
+              <input type="number" step="1000" min="0" inputmode="numeric" name="amount" class="form-control" placeholder="1000" required title="Gunakan kelipatan 1000">
+            </div>
+            <div class="form-text">Sisa pemasukan bulan ini yang tersedia: <span class="fw-semibold">{{ avail_current|money }}</span></div>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Catatan (opsional)</label>
+            <input type="text" name="note" class="form-control" placeholder="Contoh: sisihkan gaji bulan ini">
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-outline-primary" type="submit">Tambah</button>
+          </div>
+        </form>
+        {% if total_manual and total_manual > 0 %}
+          <div class="small text-muted mt-2">Total top-up manual kumulatif: {{ total_manual|money }}</div>
+        {% endif %}
+
+        {% if topups_current %}
+          <hr>
+          <div class="mb-2 fw-semibold">Top-up bulan ini</div>
+          <ul class="list-group list-group-flush">
+            {% for t in topups_current %}
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <div>
+                <div class="small text-muted">{{ t.date }}</div>
+                <div class="fw-semibold">{{ t.amount|money }}</div>
+                {% if t.note %}<div class="small text-muted">{{ t.note }}</div>{% endif %}
+              </div>
+              <form method="post" action="{{ url_for('savings_topup_delete', topup_id=t.id) }}">
+                <button class="btn btn-sm btn-outline-danger">Hapus</button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      <div class="card-soft mt-3 d-md-none">
+        <h5 class="mb-1">Riwayat Masuk Tabungan</h5>
+        <div class="small text-muted mb-3">Ini adalah sisa pemasukanmu di bulan-bulan kemarin.</div>
+        {% if autosave_history %}
+          <!-- Mobile: list -->
+          <div class="d-md-none">
+            <ul class="list-group list-group-flush">
+              {% for r in autosave_history %}
+                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                  <span class="text-muted">{{ r.month | month_indo }}</span>
+                  <span class="fw-semibold">{{ r.amount | money }}</span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <!-- Desktop: table -->
+          <div class="table-responsive d-none d-md-block">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Bulan</th>
+                  <th class="text-end">Nominal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in autosave_history %}
+                  <tr>
+                    <td>{{ r.month | month_indo }}</td>
+                    <td class="text-end">{{ r.amount | money }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="small text-muted">Menampilkan {{ autosave_history|length }} bulan terakhir.</div>
+        {% else %}
+          <div class="text-muted">Belum ada riwayat sisa saldo yang masuk tabungan.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <!-- Riwayat (desktop) dipindahkan ke kanan di atas Goals Aktif -->
+      <div class="card-soft mb-3 d-none d-md-block">
+        <h5 class="mb-1">Riwayat Masuk Tabungan</h5>
+        <div class="small text-muted mb-3">Ini adalah sisa pemasukanmu di bulan-bulan kemarin.</div>
+        {% if autosave_history %}
+          <!-- Desktop: table -->
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Bulan</th>
+                  <th class="text-end">Nominal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in autosave_history %}
+                  <tr>
+                    <td>{{ r.month | month_indo }}</td>
+                    <td class="text-end">{{ r.amount | money }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="small text-muted">Menampilkan {{ autosave_history|length }} bulan terakhir.</div>
+        {% else %}
+          <div class="text-muted">Belum ada riwayat sisa saldo yang masuk tabungan.</div>
+        {% endif %}
+      </div>
+
+      <div class="card-soft mb-3">
+        <h5 class="mb-3">Goals Aktif</h5>
+        {% if active_goals %}
+          <!-- Mobile: stacked cards -->
+          <div class="d-md-none">
+            {% for g in active_goals %}
+            {% set done = g.allocated >= g.target_amount %}
+            {% set pct = (g.allocated / g.target_amount * 100) if g.target_amount else 0 %}
+            <div class="card-soft mb-2">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="fw-semibold">{{ g.name }}</div>
+                {% if done %}
+                  <span class="badge bg-success ms-2">Tercapai</span>
+                {% else %}
+                  <span class="badge bg-secondary ms-2">Berjalan</span>
+                {% endif %}
+              </div>
+              <div class="mt-2">
+                <div class="progress budget">
+                  <div class="progress-bar" role="progressbar" style="width: {{ pct if pct <= 100 else 100 }}%"></div>
+                </div>
+                <div class="small text-muted mt-1">{{ g.allocated|money }} / {{ g.target_amount|money }}</div>
+              </div>
+              <div class="mt-2">
+                {% if done %}
+                <form method="post" action="{{ url_for('savings_archive', goal_id=g.id) }}" class="mb-2">
+                  <button class="btn btn-sm btn-outline-success w-100">Selesaikan & Arsipkan</button>
+                </form>
+                {% endif %}
+                {% if g.allocated > 0 %}
+                <form method="post" action="{{ url_for('savings_release') }}">
+                  <input type="hidden" name="goal_id" value="{{ g.id }}">
+                  <label class="form-label small mb-1">Lepaskan dana</label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">Rp</span>
+                    <input type="number" name="amount" step="1000" min="0" max="{{ g.allocated }}" inputmode="numeric" class="form-control" placeholder="1000" title="Gunakan kelipatan 1000">
+                    <button class="btn btn-outline-secondary" type="submit">Lepas</button>
+                  </div>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Desktop: table -->
+          <div class="table-responsive d-none d-md-block">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Progress</th>
+                  <th class="text-end">Target</th>
+                  <th class="text-end">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for g in active_goals %}
+                {% set done = g.allocated >= g.target_amount %}
+                {% set pct = (g.allocated / g.target_amount * 100) if g.target_amount else 0 %}
+                <tr>
+                  <td>
+                    <div class="fw-semibold">{{ g.name }}</div>
+                    {% if done %}
+                      <span class="badge bg-success">Tercapai</span>
+                    {% else %}
+                      <span class="badge bg-secondary">Berjalan</span>
+                    {% endif %}
+                  </td>
+                  <td style="min-width:260px">
+                    <div class="progress budget">
+                      <div class="progress-bar" role="progressbar" style="width: {{ pct if pct <= 100 else 100 }}%"></div>
+                    </div>
+                    <div class="small text-muted mt-1">{{ g.allocated|money }} / {{ g.target_amount|money }}</div>
+                  </td>
+                  <td class="text-end">{{ g.target_amount|money }}</td>
+                  <td class="text-end" style="min-width:220px">
+                    {% if done %}
+                      <form method="post" action="{{ url_for('savings_archive', goal_id=g.id) }}" class="d-inline">
+                        <button class="btn btn-sm btn-outline-success">Selesaikan & Arsipkan</button>
+                      </form>
+                    {% endif %}
+                    {% if g.allocated > 0 %}
+                      <form method="post" action="{{ url_for('savings_release') }}" class="d-inline ms-1">
+                        <input type="hidden" name="goal_id" value="{{ g.id }}">
+                        <div class="input-group input-group-sm" style="width: 160px; display:inline-flex;">
+                          <span class="input-group-text">Rp</span>
+                          <input type="number" name="amount" step="1000" min="0" max="{{ g.allocated }}" inputmode="numeric" class="form-control" placeholder="1000" title="Gunakan kelipatan 1000">
+                          <button class="btn btn-outline-secondary" type="submit">Lepas</button>
+                        </div>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted">Belum ada goal aktif.</div>
+        {% endif %}
+      </div>
+
+      <div class="card-soft">
+        <h5 class="mb-3">Selesai (Arsip)</h5>
+        {% if archived_goals %}
+          <!-- Mobile: stacked cards -->
+          <div class="d-md-none">
+            {% for g in archived_goals %}
+            {% set pct = (g.allocated / g.target_amount * 100) if g.target_amount else 0 %}
+            <div class="card-soft mb-2 opacity-75">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="fw-semibold">{{ g.name }}</div>
+                <span class="badge bg-success ms-2">Tercapai</span>
+              </div>
+              <div class="mt-2">
+                <div class="progress budget">
+                  <div class="progress-bar" role="progressbar" style="width: {{ pct if pct <= 100 else 100 }}%"></div>
+                </div>
+                <div class="small text-muted mt-1">{{ g.allocated|money }} / {{ g.target_amount|money }}</div>
+              </div>
+              <div class="mt-2">
+                <div class="d-flex gap-2">
+                  <form method="post" action="{{ url_for('savings_unarchive', goal_id=g.id) }}" class="flex-fill">
+                    <button class="btn btn-sm btn-outline-primary w-100">Unarchive</button>
+                  </form>
+                  <form method="post" action="{{ url_for('savings_goal_delete', goal_id=g.id) }}" class="flex-fill" onsubmit="return confirm('Hapus goal ini? Dana yang sudah dialokasikan akan dianggap terpakai (tidak kembali ke saldo tabungan).');">
+                    <button class="btn btn-sm btn-outline-danger w-100">Hapus</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <!-- Desktop: table -->
+          <div class="table-responsive d-none d-md-block">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Progress</th>
+                  <th class="text-end">Target</th>
+                  <th class="text-end">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for g in archived_goals %}
+                {% set pct = (g.allocated / g.target_amount * 100) if g.target_amount else 0 %}
+                <tr class="opacity-75">
+                  <td>
+                    <div class="fw-semibold">{{ g.name }}</div>
+                    <span class="badge bg-success">Tercapai</span>
+                  </td>
+                  <td style="min-width:260px">
+                    <div class="progress budget">
+                      <div class="progress-bar" role="progressbar" style="width: {{ pct if pct <= 100 else 100 }}%"></div>
+                    </div>
+                    <div class="small text-muted mt-1">{{ g.allocated|money }} / {{ g.target_amount|money }}</div>
+                  </td>
+                  <td class="text-end">{{ g.target_amount|money }}</td>
+                  <td class="text-end">
+                    <form method="post" action="{{ url_for('savings_unarchive', goal_id=g.id) }}" class="d-inline">
+                      <button class="btn btn-sm btn-outline-primary">Unarchive</button>
+                    </form>
+                    <form method="post" action="{{ url_for('savings_goal_delete', goal_id=g.id) }}" class="d-inline ms-1" onsubmit="return confirm('Hapus goal ini? Dana yang sudah dialokasikan akan dianggap terpakai (tidak kembali ke saldo tabungan).');">
+                      <button class="btn btn-sm btn-outline-danger">Hapus</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted">Belum ada goal yang diarsipkan.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+{% endblock %}

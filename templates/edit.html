@@ -21,7 +21,7 @@
     <!-- Jenis (non-editable) -->
     <div class="col-md-4">
       <label class="form-label">Jenis</label>
-      <input type="text" class="form-control" value="{{ trx.type }}" disabled />
+      <input type="text" class="form-control" value="{{ trx.type | type_label }}" disabled />
     </div>
 
     <!-- Kategori (wajib pilih, tanpa default) -->
@@ -36,7 +36,7 @@
         <option value="" disabled {{ 'selected' if not trx.category_id else '' }}>— pilih kategori —</option>
         {% for c in categories %}
           <option value="{{ c.id }}" {{ 'selected' if trx.category_id==c.id else '' }}>
-            {{ c.name }}
+            {{ (c.emoji ~ ' ') if c.emoji else '' }}{{ c.name }}
           </option>
         {% endfor %}
       </select>

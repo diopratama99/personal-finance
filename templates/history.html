@@ -1,4 +1,11 @@
 {% extends "base.html" %}
+{% block head_extra %}
+<style>
+  /* Warna opsi kategori pada filter */
+  #catFilter option[data-type="income"] { color:#198754; }
+  #catFilter option[data-type="expense"]{ color:#dc3545; }
+</style>
+{% endblock %}
 {% block content %}
 
 <!-- ========== Filter bar ========== -->
@@ -8,8 +15,8 @@
     <div class="col-12 col-md-3">
       <select class="form-select" name="type" id="typeFilter" aria-label="Filter jenis">
         <option value="">Semua jenis</option>
-        <option value="income"  {{ 'selected' if q_type=='income'  else '' }}>income</option>
-        <option value="expense" {{ 'selected' if q_type=='expense' else '' }}>expense</option>
+        <option value="income"  {{ 'selected' if q_type=='income'  else '' }}>Pemasukan</option>
+        <option value="expense" {{ 'selected' if q_type=='expense' else '' }}>Pengeluaran</option>
       </select>
     </div>
 
@@ -82,8 +89,8 @@
         {% for r in rows %}
           <tr>
             <td data-label="Tanggal">{{ r.date }}</td>
-            <td data-label="Jenis" class="{{ 'text-danger' if r.type=='expense' else 'text-success' }}">{{ r.type }}</td>
-            <td data-label="Kategori">{{ r.category }}</td>
+            <td data-label="Jenis" class="{{ 'text-danger' if r.type=='expense' else 'text-success' }}">{{ r.type | type_label }}</td>
+            <td data-label="Kategori">{{ (r.category_emoji ~ ' ') if r.category_emoji else '' }}{{ r.category }}</td>
             <td data-label="Nominal">{{ r.amount|money }}</td>
 
             <!-- Desktop only -->
@@ -175,6 +182,20 @@
     // 1) Sinkronisasi filter kategori terhadap jenis
     const typeSel = document.getElementById('typeFilter');
     const catSel  = document.getElementById('catFilter');
+    const CATS = {{ (categories if categories is defined else [])|tojson }};
+    const SELECTED_CAT = {{ (q_cat if q_cat else 'null')|tojson }};
+
+    // Rebuild opsi kategori: hilangkan optgroup dan gunakan emoji user
+    function rebuildCategoryOptions(){
+      if (!catSel) return;
+      let html = '<option value="">Semua kategori</option>';
+      for (const c of CATS) {
+        const label = (c.emoji ? (c.emoji + ' ') : '') + c.name;
+        const sel = (SELECTED_CAT !== null && String(SELECTED_CAT) === String(c.id)) ? ' selected' : '';
+        html += `<option value="${c.id}" data-type="${c.type}"${sel}>${label}</option>`;
+      }
+      catSel.innerHTML = html;
+    }
 
     function filterCategories() {
       const t = (typeSel.value || '').toLowerCase(); // '' | 'income' | 'expense'
@@ -188,6 +209,7 @@
       }
     }
     typeSel.addEventListener('change', filterCategories);
+    rebuildCategoryOptions();
     filterCategories(); 
 
     // 2) Isi modal global saat akan ditampilkan
@@ -201,7 +223,9 @@
           if (el) el.textContent = (val && val !== 'None') ? val : '-';
         };
         set('mDate',     btn.getAttribute('data-date'));
-        set('mType',     btn.getAttribute('data-type'));
+        const rawType = btn.getAttribute('data-type');
+        const typeText = rawType === 'income' ? 'Pemasukan' : (rawType === 'expense' ? 'Pengeluaran' : rawType);
+        set('mType', typeText);
         set('mCategory', btn.getAttribute('data-category'));
         set('mAmount',   btn.getAttribute('data-amount'));
         set('mPayment',  btn.getAttribute('data-payment'));

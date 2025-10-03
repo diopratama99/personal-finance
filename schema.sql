@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS categories (
   user_id INTEGER NOT NULL,
   type TEXT CHECK(type IN ('income','expense')) NOT NULL,
   name TEXT NOT NULL,
+  emoji TEXT,
   UNIQUE(user_id, type, name),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
@@ -44,4 +45,59 @@ CREATE TABLE IF NOT EXISTS budgets (
   UNIQUE(user_id, category_id, month),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+-- Auto-transfer sisa saldo positif per bulan (YYYY-MM)
+CREATE TABLE IF NOT EXISTS savings_auto_transfers (
+  user_id INTEGER NOT NULL,
+  month TEXT NOT NULL,                 -- YYYY-MM
+  amount REAL NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, month),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Goals/tabungan pengguna
+CREATE TABLE IF NOT EXISTS savings_goals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  target_amount REAL NOT NULL,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  achieved_at TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Alokasi dari tabungan ke goals
+CREATE TABLE IF NOT EXISTS savings_allocations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  goal_id INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  date TEXT NOT NULL,                   -- YYYY-MM-DD
+  note TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (goal_id) REFERENCES savings_goals(id)
+);
+
+-- Top-up manual ke tabungan (misalnya bulan berjalan)
+CREATE TABLE IF NOT EXISTS savings_manual_topups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  month TEXT NOT NULL,                 -- YYYY-MM (biasanya bulan berjalan)
+  date TEXT NOT NULL,                  -- YYYY-MM-DD
+  amount REAL NOT NULL,
+  note TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Konsumsi tabungan permanen (dana dianggap terpakai, mengurangi saldo tersedia)
+CREATE TABLE IF NOT EXISTS savings_consumed (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  note TEXT,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );
