@@ -9,6 +9,7 @@
 
 <!-- FILTER PERIODE + EXPORT -->
 <div class="card-soft mb-3">
+  <div class="muted-title mb-2">Atur Periode Laporan</div>
   <form class="row gy-2 gx-2 align-items-end filter-grid" method="get">
     <div class="col-auto">
       <label class="form-label mb-0">Mulai</label>
@@ -29,41 +30,54 @@
   </form>
 </div>
 
-<!-- RINGKASAN & GRAFIK -->
-<div class="row g-3 align-items-stretch equal-row">
-  <div class="col-lg-4">
-    <div class="card-soft h-100">
-      <h6 class="text-muted">Ringkasan Periode</h6>
-      <div class="display-6 fw-semibold mt-2 count-up" data-target="{{ summary.income }}">Pendapatan: {{ summary.income|money }}</div>
-      <div class="display-6 fw-semibold text-danger count-up" data-target="{{ summary.expense }}">Pengeluaran: {{ summary.expense|money }}</div>
-      <div class="display-6 fw-semibold {{ 'text-success' if summary.net>=0 else 'text-danger' }} count-up" data-target="{{ summary.net }}">Saldo: {{ summary.net|money }}</div>
-
-      <hr>
-      <h6 class="text-muted">Statistik Pengeluaran</h6>
-      {% if spend_by_cat %}
-        <p>Kategori terbanyak: <b>{{ spend_by_cat[0].category }}</b> ({{ spend_by_cat[0].total|money }})</p>
-      {% else %}
-        <p>Belum ada data.</p>
-      {% endif %}
-      {% if top_payee %}
-        <p>Terbanyak ke: <b>{{ top_payee.payee }}</b> ({{ top_payee.total|money }}, {{ top_payee.cnt }} trx)</p>
-      {% endif %}
+<!-- SISA SALDO + GOALS (2 kolom di desktop) -->
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <div class="card-soft sisa-card text-center h-100">
+      <div class="sisa-label">Sisa uang pada periode ini</div>
+      <div class="sisa-amount fw-bold {{ 'text-success' if summary.net>=0 else 'text-danger' }}">{{ summary.net|money }}</div>
+      <div class="sisa-actions d-grid gap-2 d-sm-flex justify-content-center mt-2">
+        <a class="btn btn-success" href="{{ url_for('add_form', type='income') }}"><i class="bi bi-plus-circle me-1"></i>Tambah Pemasukan</a>
+        <a class="btn btn-outline-danger" href="{{ url_for('add_form', type='expense') }}"><i class="bi bi-dash-circle me-1"></i>Tambah Pengeluaran</a>
+      </div>
+      <div class="text-muted small mt-2">Periode: {{ start }} s/d {{ end }}</div>
     </div>
   </div>
-
-  <div class="col-lg-8">
+  <div class="col-lg-7">
     <div class="card-soft h-100">
-      <h6 class="mb-3">Grafik Pengeluaran per Kategori</h6>
-      <div class="chart-box" id="expenseChartBox">
-        <canvas id="expenseChart" aria-label="Grafik pengeluaran per kategori" role="img"></canvas>
+      <div class="muted-title mb-1">Ayo tambah lagi Tabunganmu</div>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="m-0 muted-subtle">Goals Aktif</h6>
+        <a class="btn btn-sm btn-light" href="{{ url_for('savings_page') }}">Kelola</a>
       </div>
+      {% if active_goals %}
+        {% for g in active_goals %}
+          {% set pct = (g.allocated / g.target_amount * 100) if g.target_amount else 0 %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between small">
+              <span class="fw-semibold">{{ g.name }}</span>
+              <span>{{ g.allocated|money }} / {{ g.target_amount|money }}</span>
+            </div>
+            <div class="progress budget">
+              <div class="progress-bar {{ 'bg-success' if pct<=100 else 'bg-danger' }}" style="width: {{ [pct, 150]|min }}%"></div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted">Belum ada goals aktif.</div>
+      {% endif %}
     </div>
   </div>
 </div>
 
 {% if budgets %}
-<div class="card-soft mt-3">
-  <h6 class="mb-3">Budget Bulan {{ start[:7] }}</h6>
+<div class="card-soft mb-3" data-aos="fade-up">
+  <div class="muted-title mb-2">Budget Bulan {{ start[:7]|month_indo_dash }}</div>
+  {% if over_budgets and over_budgets|length > 0 %}
+    <div class="alert alert-danger py-2">Anda telah melebihi budget pada kategori: 
+      {{ over_budgets | map(attribute='category') | join(', ') }}.
+    </div>
+  {% endif %}
   {% for b in budgets %}
     {% set pct = (100 * b.spent / b.amount) if b.amount else 0 %}
     <div class="mb-2">
@@ -83,9 +97,41 @@
 </div>
 {% endif %}
 
+<!-- RINGKASAN & GRAFIK -->
+<div class="row g-3 align-items-stretch equal-row">
+  <div class="col-lg-4">
+    <div class="card-soft h-100">
+      <div class="muted-title">Ringkasan Periode</div>
+      <div class="display-6 fw-semibold mt-2 count-up" data-target="{{ summary.income }}">Pendapatan: {{ summary.income|money }}</div>
+      <div class="display-6 fw-semibold text-danger count-up" data-target="{{ summary.expense }}">Pengeluaran: {{ summary.expense|money }}</div>
+      <div class="display-6 fw-semibold {{ 'text-success' if summary.net>=0 else 'text-danger' }} count-up" data-target="{{ summary.net }}">Saldo: {{ summary.net|money }}</div>
+
+      <hr>
+      <h6 class="text-muted">Statistik Pengeluaran</h6>
+      {% if spend_by_cat %}
+        <p>Kategori terbanyak: <b>{{ spend_by_cat[0].category }}</b> ({{ spend_by_cat[0].total|money }})</p>
+      {% else %}
+        <p>Belum ada data.</p>
+      {% endif %}
+      {% if top_payee %}
+        <p>Terbanyak ke: <b>{{ top_payee.payee }}</b> ({{ top_payee.total|money }}, {{ top_payee.cnt }} trx)</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card-soft h-100">
+      <div class="muted-title mb-3">Grafik Pengeluaran per Kategori</div>
+      <div class="chart-box" id="expenseChartBox">
+        <canvas id="expenseChart" aria-label="Grafik pengeluaran per kategori" role="img"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 10 TRANSAKSI TERAKHIR -->
 <div class="card-soft mt-3">
-  <h6 class="mb-3">10 Transaksi Terakhir</h6>
+  <div class="muted-title mb-3">10 Transaksi Terakhir</div>
   <div class="table-responsive">
     <table class="table table-hover align-middle table-stacked">
       <thead>

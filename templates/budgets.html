@@ -17,27 +17,31 @@
 </div>
 
 <div class="card-soft mb-3" data-aos="fade-up" style="max-width:980px;margin:auto">
-  <h6 class="mb-2">Tambah / Ubah Budget ({{ month }})</h6>
-  <form method="post" action="{{ url_for('budgets_set') }}" class="row g-2">
-    <input type="hidden" name="month" value="{{ month }}">
-    <div class="col-md-6">
-      <label class="form-label">Kategori (pengeluaran)</label>
-      <select class="form-select" name="category_id" required>
-        {% for c in categories %}
-          <option value="{{ c.id }}">{{ c.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Nominal</label>
-      <input class="form-control" name="amount" type="number" min="0" placeholder="contoh: 1500000" required>
-    </div>
-    <div class="col-md-2 d-grid">
-      <label class="form-label invisible">Simpan</label>
-      <button class="btn btn-primary">Simpan</button>
-    </div>
-  </form>
-  <div class="form-text">Jika kategori & bulan sama sudah ada, nilai akan **di-update** (bukan dobel).</div>
+  <h6 class="mb-2">Tambah Budget ({{ month }})</h6>
+  {% if categories_avail %}
+    <form method="post" action="{{ url_for('budgets_set') }}" class="row gy-2 gx-2">
+      <input type="hidden" name="month" value="{{ month }}">
+      <div class="col-12 col-md-6">
+        <label class="form-label">Kategori (pengeluaran)</label>
+        <select class="form-select" name="category_id" required>
+          {% for c in categories_avail %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label">Nominal</label>
+        <input class="form-control" name="amount" type="number" min="0" step="1000" inputmode="numeric" pattern="\d*" data-money-input placeholder="contoh: 1500000" required>
+      </div>
+      <div class="col-12 col-md-2 d-grid">
+        <label class="form-label invisible">Simpan</label>
+        <button class="btn btn-primary">Simpan</button>
+      </div>
+    </form>
+    <div class="form-text">Kategori yang sudah memiliki budget bulan ini tidak muncul di daftar.</div>
+  {% else %}
+    <div class="alert alert-info mb-0">Semua kategori pengeluaran sudah memiliki budget untuk bulan ini. Gunakan aksi Edit/Hapus pada tabel di bawah.</div>
+  {% endif %}
 </div>
 
 <div class="card-soft" data-aos="fade-up" style="max-width:980px;margin:auto">
@@ -46,13 +50,25 @@
     <div class="table-responsive">
       <table class="table table-hover align-middle">
         <thead>
-          <tr><th>Kategori</th><th>Nominal</th></tr>
+          <tr><th>Kategori</th><th>Nominal</th><th class="text-center" style="width:1%; white-space:nowrap">Aksi</th></tr>
         </thead>
         <tbody>
           {% for r in rows %}
             <tr>
               <td>{{ r.category }}</td>
               <td>{{ r.amount|money }}</td>
+              <td class="text-center" style="width:1%; white-space:nowrap">
+                <button class="btn btn-sm btn-outline-primary btn-compact"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editBudgetModal"
+                        data-budget-id="{{ r.id }}"
+                        data-category-id="{{ r.category_id }}"
+                        data-category="{{ r.category }}"
+                        data-amount="{{ r.amount|int }}"
+                        data-delete-url="{{ url_for('budgets_delete', budget_id=r.id) }}">
+                  Edit
+                </button>
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -62,5 +78,68 @@
     <p class="text-muted mb-0">Belum ada budget untuk bulan ini.</p>
   {% endif %}
 </div>
+
+<!-- Modal: Edit Budget -->
+<div class="modal fade" id="editBudgetModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Budget</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted" id="editBudgetCategory"></div>
+        <form id="editBudgetForm" method="post" action="{{ url_for('budgets_set') }}" class="d-grid gap-2">
+          <input type="hidden" name="month" value="{{ month }}">
+          <input type="hidden" name="category_id" id="editBudgetCategoryId">
+          <input type="hidden" name="action" value="edit">
+          <label class="form-label">Nominal</label>
+          <input class="form-control" id="editBudgetAmount" name="amount" type="number" min="0" step="1000" inputmode="numeric" pattern="\d*" data-money-input required>
+          <button class="btn btn-success">Simpan</button>
+        </form>
+        <form id="deleteBudgetForm" method="post" class="mt-2">
+          <input type="hidden" name="month" value="{{ month }}">
+          <button class="btn btn-outline-danger w-100" onclick="return confirm('Hapus budget ini?')">Hapus</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  </div>
+
+<script>
+  // Bulatkan ke kelipatan 1000 dan hilangkan desimal pada blur (mobile-friendly)
+  (function() {
+    function round1000(val) {
+      var n = parseFloat(val);
+      if (isNaN(n)) return '';
+      if (n < 0) n = 0;
+      return String(Math.round(n / 1000) * 1000);
+    }
+    document.querySelectorAll('input[data-money-input]').forEach(function(el){
+      el.addEventListener('blur', function(){ el.value = round1000(el.value); });
+    });
+
+    // Modal setup
+    var editModal = document.getElementById('editBudgetModal');
+    if (editModal) {
+      editModal.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        if (!btn) return;
+        var category = btn.getAttribute('data-category') || '';
+        var amount = btn.getAttribute('data-amount') || '';
+        var catId = btn.getAttribute('data-category-id') || '';
+        var delUrl = btn.getAttribute('data-delete-url') || '#';
+
+        // Fill
+        document.getElementById('editBudgetCategory').textContent = 'Kategori: ' + category;
+        document.getElementById('editBudgetCategoryId').value = catId;
+        document.getElementById('editBudgetAmount').value = round1000(amount);
+
+        var delForm = document.getElementById('deleteBudgetForm');
+        if (delForm) delForm.setAttribute('action', delUrl);
+      });
+    }
+  })();
+</script>
 
 {% endblock %}

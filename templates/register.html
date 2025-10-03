@@ -1,13 +1,54 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="auth-card mx-auto" data-aos="zoom-in">
-  <h4 class="mb-3">Daftar</h4>
-  <form method="post" action="{{ url_for('do_register') }}" class="vstack gap-3">
-    <input name="name" class="form-control" placeholder="Nama" required>
-    <input name="email" class="form-control" placeholder="Email" required>
-    <input name="password" class="form-control" type="password" placeholder="Password" required>
-    <button class="btn btn-primary w-100">Buat Akun</button>
-  </form>
-  <div class="small mt-3">Sudah punya akun? <a href="{{ url_for('login') }}">Masuk</a></div>
+
+<!-- Decorative blurred blobs background (same as Login) -->
+<div class="bg-decor">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="grain"></div>
 </div>
+
+<div class="login-hero d-flex flex-column align-items-center">
+  <div class="text-center mb-3">
+    <div class="login-brand fw-bold">Temanku</div>
+    <div class="text-muted login-sub">Kelola keuangan pribadi dengan mudah</div>
+  </div>
+
+  <div class="auth-card mx-auto" data-aos="zoom-in">
+    <h4 class="mb-3">Daftar</h4>
+    <form method="post" action="{{ url_for('do_register') }}" class="vstack gap-3">
+      <input name="name" class="form-control" placeholder="Nama" required>
+      <input name="email" class="form-control" placeholder="Email" required>
+      <div class="password-wrapper">
+        <input id="regPassword" name="password" class="form-control pe-5" type="password" placeholder="Password" required>
+        <button class="password-toggle" type="button" id="toggleRegPassword" aria-label="Tampilkan password" title="Tampilkan">
+          <i class="bi bi-eye"></i>
+        </button>
+      </div>
+      <button class="btn btn-primary w-100">Buat Akun</button>
+    </form>
+    <div class="small mt-3">Sudah punya akun? <a href="{{ url_for('login') }}">Masuk</a></div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    var btn = document.getElementById('toggleRegPassword');
+    var inp = document.getElementById('regPassword');
+    if(!btn || !inp) return;
+    btn.addEventListener('click', function(){
+      var isPwd = inp.type === 'password';
+      inp.type = isPwd ? 'text' : 'password';
+      var icon = btn.querySelector('i');
+      if(icon){
+        icon.classList.toggle('bi-eye', !isPwd);
+        icon.classList.toggle('bi-eye-slash', isPwd);
+      }
+      btn.setAttribute('aria-label', isPwd ? 'Sembunyikan password' : 'Tampilkan password');
+      btn.setAttribute('title', isPwd ? 'Sembunyikan' : 'Tampilkan');
+    });
+  })();
+</script>
+
 {% endblock %}

@@ -25,10 +25,11 @@
 <body class="bg-body">
 
   <!-- NAVBAR -->
+  {% set ep = request.endpoint %}
+  {% if ep not in ['login','register'] %}
   <nav class="navbar navbar-dark bg-success sticky-top shadow-sm">
     <div class="container">
       <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">Temanku</a>
-
       <!-- Burger -->
       <button class="navbar-toggler" type="button"
               data-bs-toggle="offcanvas" data-bs-target="#mainMenu"
@@ -37,6 +38,7 @@
       </button>
     </div>
   </nav>
+  {% endif %}
 
   <!-- Offcanvas Menu -->
   {% set ep = request.endpoint %}
@@ -111,16 +113,18 @@
   <!-- background layer (tidak memakan klik) -->
   <div class="bg-layer"></div>
 
-  <main class="container my-3 my-md-4">
+  <main class="container {% if request.endpoint in ['login','register'] %}my-0 py-0 login-main{% else %}my-3 my-md-4{% endif %}">
     <!-- Toasts (opsional) -->
     {% with msgs = get_flashed_messages(with_categories=true) %}
       {% if msgs %}
         <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1200">
           {% for cat, m in msgs %}
-            <div class="toast align-items-center text-bg-{{ 'success' if cat=='success' else 'danger' }} show">
+            {% set color = cat if cat in ['success','danger','warning','info','primary','secondary'] else 'danger' %}
+            {% set close_white = color not in ['warning','light'] %}
+            <div class="toast align-items-center text-bg-{{ color }} show">
               <div class="d-flex">
                 <div class="toast-body">{{ m }}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                <button type="button" class="btn-close {% if close_white %}btn-close-white{% endif %} me-2 m-auto" data-bs-dismiss="toast"></button>
               </div>
             </div>
           {% endfor %}
@@ -143,18 +147,27 @@
 
   <!-- Global hook: handle Back/Forward Cache -->
   <script>
-    // Panggil init saat pertama load
+    // Panggil init saat pertama load dan pastikan animasi tampil
     document.addEventListener('DOMContentLoaded', () => {
+      document.body.classList.remove('page-leave');
+      const main = document.querySelector('main');
+      if (main && !main.classList.contains('page-enter')) {
+        requestAnimationFrame(() => main.classList.add('page-enter'));
+      }
       if (typeof window.pageInit === 'function') window.pageInit(false);
     });
 
     // Re-init ketika kembali dari Back/Forward (bfcache)
     window.addEventListener('pageshow', (e) => {
       if (e.persisted) {
+        document.body.classList.remove('page-leave');
+        const main = document.querySelector('main');
+        if (main) main.classList.add('page-enter');
         if (typeof window.pageInit === 'function') {
           window.pageInit(true);
         } else {
-          location.reload();
+          // fallback bila halaman tidak menyuplai pageInit
+          // (hindari reload agresif)
         }
       }
     });

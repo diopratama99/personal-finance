@@ -37,6 +37,7 @@ h1,h2,h3,.display-6{ font-weight:700; letter-spacing:.2px }
 
 .navbar .btn{border-radius:999px;padding:.35rem .9rem}
 .btn{transition:transform .15s ease, box-shadow .2s ease}
+.btn-compact{ padding:.3rem .6rem; border-radius:12px; }
 .btn:active{transform:translateY(1px)}
 .btn-primary{background:var(--primary);border-color:var(--primary)}
 .btn-outline-primary{border-color:var(--primary);color:var(--primary)}
@@ -97,6 +98,34 @@ html[data-theme="dark"] .form-select{background:rgba(255,255,255,.06)}
 /* ===== SMALL GOODIES ===== */
 .progress.budget{height:10px;background:rgba(0,0,0,.08);border-radius:10px;overflow:hidden}
 .display-6{font-size:1.6rem}
+
+/* Password eye inside input */
+.password-wrapper{ position:relative; }
+.password-wrapper .password-toggle{
+  position:absolute; right:.55rem; top:50%; transform:translateY(-50%);
+  border:0; background:transparent; color:var(--primary); padding:.25rem; line-height:1;
+}
+.password-wrapper .password-toggle:focus{ outline: none; box-shadow:none; }
+/* Hide native Edge/IE eye to avoid duplicate */
+input[type="password"]::-ms-reveal{ display:none; }
+input[type="password"]::-ms-clear{ display:none; }
+
+/* ===== LOGIN HERO ===== */
+.login-hero{ height:100vh; justify-content:center; padding-top:0; }
+@media (min-width:768px){ .login-hero{ height:100vh; } }
+@media (min-width:992px){ .login-hero{ height:100vh; } }
+.login-logo{
+  width:56px; height:56px; border-radius:16px;
+  display:grid; place-items:center; font-size:28px;
+  background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.75));
+  box-shadow:0 10px 30px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.7);
+}
+.login-brand{ font-size:1.6rem; letter-spacing:.3px }
+.login-sub{ font-size:.95rem }
+.login-hero .auth-card{ box-shadow:0 22px 60px rgba(12,18,28,.18); }
+
+/* Smaller card title for consistency */
+.auth-card h4{ font-size:1.2rem; font-weight:700; letter-spacing:.2px; }
 
 /* ====== Mobile polish ====== */
 .navbar-brand{ font-weight:800; letter-spacing:.2px }
@@ -259,6 +288,21 @@ body { font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Ar
 main{ opacity:0; transform: translateY(8px); }
 main.page-enter{ opacity:1; transform:none; transition:opacity .35s ease, transform .35s ease; }
 body.page-leave main{ opacity:0; transform: translateY(6px); transition:opacity .18s ease, transform .18s ease; }
+
+/* ===== Dashboard: Sisa Saldo ===== */
+.sisa-card{ display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.sisa-card .sisa-label{ color: var(--text); color: color-mix(in srgb, var(--text) 90%, #000 10%); font-weight:600; margin-bottom:.4rem; font-size:1.05rem; }
+.sisa-card .sisa-amount{ font-size:2.2rem; line-height:1.2; margin-bottom:.7rem; }
+@media (min-width: 768px){ .sisa-card .sisa-amount{ font-size:3.2rem; } }
+.sisa-card .sisa-actions{ margin-top:.2rem; }
+.sisa-card .sisa-actions .btn{ border-radius:14px; padding:.6rem 1rem; }
+
+/* Reusable section title (near-black, a bit larger) */
+.muted-title{ color: var(--text); color: color-mix(in srgb, var(--text) 90%, #000 10%); font-weight:600; letter-spacing:.01em; font-size:1.05rem; }
+html[data-theme="dark"] .muted-title{ color: var(--text); }
+
+/* Subtle variant for smaller, gray headings (e.g., Goals Aktif) */
+.muted-subtle{ color: var(--muted); font-weight:600; letter-spacing:.01em; font-size:.98rem; }
 
 /* ===== Responsive stacked table (≤575.98px) ===== */
 @media (max-width: 575.98px) {

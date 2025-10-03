@@ -269,6 +269,20 @@ def month_indo(ym: str) -> str:
 
 app.jinja_env.filters["month_indo"] = month_indo
 
+# Versi dengan separator dash: "NamaBulan - YYYY"
+def month_indo_dash(ym: str) -> str:
+    try:
+        if not ym or len(ym) < 7 or "-" not in ym:
+            return ym
+        y, m = ym.split("-")[:2]
+        mi = int(m)
+        name = _MONTHS_ID[mi] if 1 <= mi <= 12 else m
+        return f"{name} - {y}"
+    except Exception:
+        return ym
+
+app.jinja_env.filters["month_indo_dash"] = month_indo_dash
+
 # Label jenis transaksi dalam Bahasa Indonesia
 def type_label(val: str) -> str:
     if val == 'income':
@@ -327,7 +341,7 @@ def do_register():
         return redirect(url_for("register"))
 
     seed_default_categories(user_id)
-    flash("Pendaftaran berhasil. Silakan login.")
+    flash("Pendaftaran berhasil. Silakan login.", "success")
     return redirect(url_for("login"))
 
 @app.get("/login")
@@ -418,19 +432,40 @@ def dashboard():
             LIMIT 10
         """, (current_user.id, start, end)).fetchall()
 
+        # Active savings goals (ringkas untuk dashboard)
+        goals_rows = con.execute(
+            """
+            SELECT g.id, g.name, g.target_amount,
+                   COALESCE(SUM(a.amount),0) AS allocated
+            FROM savings_goals g
+            LEFT JOIN savings_allocations a ON a.goal_id=g.id AND a.user_id=g.user_id
+            WHERE g.user_id=? AND g.archived_at IS NULL
+            GROUP BY g.id
+            ORDER BY g.created_at DESC
+            LIMIT 6
+            """,
+            (current_user.id,)
+        ).fetchall()
+
     summary = {
         "income": float(totals["income"] or 0),
         "expense": float(totals["expense"] or 0),
     }
     summary["net"] = summary["income"] - summary["expense"]
 
+    # siapkan flag kategori yang over-budget
+    budgets_py = [dict(b) for b in budgets]
+    over_budgets = [b for b in budgets_py if float(b.get("amount") or 0) > 0 and float(b.get("spent") or 0) > float(b.get("amount") or 0)]
+
     return render_template(
         "dashboard.html",
         start=start, end=end, summary=summary,
         spend_by_cat=[dict(r) for r in spend],
         top_payee=dict(top_payee) if top_payee else None,
-        budgets=[dict(b) for b in budgets],
+        budgets=budgets_py,
+        over_budgets=over_budgets,
         latest=[dict(r) for r in latest],
+        active_goals=[dict(r) for r in goals_rows],
     )
 
 
@@ -551,7 +586,7 @@ def add_submit():
             VALUES (?,?,?,?,?,?,?,?)
         """, (current_user.id, date_, type_, cat_id_int, amt, keterangan, payment, notes))
 
-    flash("Transaksi tersimpan.")
+    flash("Transaksi tersimpan.", "success")
     return redirect(url_for("history"))
 
 @app.get("/edit/<int:trx_id>")
@@ -633,7 +668,7 @@ def edit_submit(trx_id):
              WHERE id=? AND user_id=?
         """, (date_, cat_id_int, amt, keterangan, payment, notes, trx_id, current_user.id))
 
-    flash("Perubahan disimpan.")
+    flash("Perubahan disimpan.", "warning")
     return redirect(url_for("history"))
 
 @app.post("/delete/<int:trx_id>")
@@ -642,7 +677,7 @@ def delete_trx(trx_id):
     with db() as con:
         cur = con.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (trx_id, current_user.id))
     if getattr(cur, "rowcount", 0):
-        flash("Transaksi dihapus.")
+        flash("Transaksi dihapus.", "danger")
     else:
         flash("Transaksi tidak ditemukan.", "warning")
     return redirect(url_for("history"))
@@ -783,7 +818,7 @@ def categories_add():
     with db() as con:
         try:
             con.execute("INSERT INTO categories(user_id,type,name,emoji) VALUES (?,?,?,?)", (current_user.id, type_, name, emoji or None))
-            flash("Kategori ditambahkan.")
+            flash("Kategori ditambahkan.", "success")
         except sqlite3.IntegrityError:
             flash("Kategori sudah ada.")
     return redirect(url_for("categories_page"))
@@ -807,7 +842,7 @@ def categories_edit(cat_id):
                 "UPDATE categories SET name=?, emoji=? WHERE id=? AND user_id=?",
                 (name, emoji or None, cat_id, current_user.id)
             )
-            flash("Kategori diperbarui.")
+            flash("Kategori diperbarui.", "warning")
         except sqlite3.IntegrityError:
             flash("Kategori dengan nama tersebut sudah ada.")
     return redirect(url_for("categories_page"))
@@ -833,10 +868,14 @@ def budgets_page():
             WHERE b.user_id=? AND b.month=?
             ORDER BY c.name
         """, (current_user.id, month)).fetchall()
+    # Filter kategori agar tidak bisa ditambahkan dua kali pada bulan yang sama
+    used_ids = {r["category_id"] for r in rows}
+    cats_avail = [dict(c) for c in cats if c["id"] not in used_ids]
+
     return render_template(
         "budgets.html",
         month=month,
-        categories=[dict(c) for c in cats],
+        categories_avail=cats_avail,
         rows=[dict(r) for r in rows],
         title="Budget",
     )
@@ -847,13 +886,25 @@ def budgets_set():
     month = request.form.get("month")
     category_id = int(request.form.get("category_id"))
     amount = float(request.form.get("amount"))
+    action = (request.form.get("action") or "").strip().lower()
     with db() as con:
         con.execute("""
             INSERT INTO budgets(user_id,category_id,month,amount)
             VALUES (?,?,?,?)
             ON CONFLICT(user_id,category_id,month) DO UPDATE SET amount=excluded.amount
         """, (current_user.id, category_id, month, amount))
-    flash("Budget disimpan.")
+    flash("Budget disimpan.", "warning" if action == "edit" else "success")
+    return redirect(url_for("budgets_page", month=month))
+
+@app.post("/budgets/<int:budget_id>/delete")
+@login_required
+def budgets_delete(budget_id: int):
+    """Hapus budget milik user saat ini, lalu kembali ke bulan terkait."""
+    # bulan untuk redirect; fallback ke bulan berjalan jika tidak dikirim
+    month = request.form.get("month") or date.today().strftime("%Y-%m")
+    with db() as con:
+        con.execute("DELETE FROM budgets WHERE id=? AND user_id=?", (budget_id, current_user.id))
+    flash("Budget dihapus.", "danger")
     return redirect(url_for("budgets_page", month=month))
 
 
@@ -1074,7 +1125,7 @@ def savings_topup():
             "INSERT INTO savings_manual_topups(user_id,month,date,amount,note,transaction_id) VALUES (?,?,?,?,?,?)",
             (current_user.id, month, today.isoformat(), amt, note or None, tx_id)
         )
-    flash("Top up tabungan bulan ini disimpan.")
+    flash("Top up tabungan bulan ini disimpan.", "success")
     return redirect(url_for("savings_page"))
 
 
@@ -1100,7 +1151,7 @@ def savings_topup_delete(topup_id):
             con.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (tx_id, current_user.id))
         con.execute("DELETE FROM savings_manual_topups WHERE id=? AND user_id=?", (topup_id, current_user.id))
 
-    flash("Top-up bulan ini dibatalkan dan dana dikembalikan ke sisa income bulan ini.")
+    flash("Top-up bulan ini dibatalkan dan dana dikembalikan ke sisa income bulan ini.", "danger")
     return redirect(url_for("savings_page"))
 
 
@@ -1125,7 +1176,7 @@ def savings_create_goal():
             "INSERT INTO savings_goals(user_id,name,target_amount) VALUES (?,?,?)",
             (current_user.id, name, target_val)
         )
-    flash("Goal tabungan ditambahkan.")
+    flash("Goal tabungan ditambahkan.", "success")
     return redirect(url_for("savings_page"))
 
 
@@ -1183,7 +1234,7 @@ def savings_allocate():
             (current_user.id, gid, amt, today_iso, note or None)
         )
 
-    flash("Alokasi tersimpan.")
+    flash("Alokasi tersimpan.", "success")
     return redirect(url_for("savings_page"))
 
 
@@ -1197,7 +1248,7 @@ def savings_archive(goal_id):
             return redirect(url_for("savings_page"))
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         con.execute("UPDATE savings_goals SET archived_at=? WHERE id=? AND user_id=?", (now, goal_id, current_user.id))
-    flash("Goal diarsipkan.")
+    flash("Goal diarsipkan.", "warning")
     return redirect(url_for("savings_page"))
 
 
@@ -1210,7 +1261,7 @@ def savings_unarchive(goal_id):
             flash("Goal tidak ditemukan.")
             return redirect(url_for("savings_page"))
         con.execute("UPDATE savings_goals SET archived_at=NULL WHERE id=? AND user_id=?", (goal_id, current_user.id))
-    flash("Goal dikembalikan ke daftar aktif.")
+    flash("Goal dikembalikan ke daftar aktif.", "warning")
     return redirect(url_for("savings_page"))
 
 
@@ -1250,7 +1301,7 @@ def savings_release():
             (current_user.id, gid, -amt, today_iso, note or "Release dana")
         )
 
-    flash("Dana dilepas kembali ke saldo tabungan.")
+    flash("Dana dilepas kembali ke saldo tabungan.", "warning")
     return redirect(url_for("savings_page"))
 
 
@@ -1284,7 +1335,7 @@ def savings_goal_delete(goal_id):
         con.execute("DELETE FROM savings_allocations WHERE user_id=? AND goal_id=?", (current_user.id, goal_id))
         con.execute("DELETE FROM savings_goals WHERE id=? AND user_id=?", (goal_id, current_user.id))
 
-    flash("Goal dihapus. Dana yang telah dialokasikan dianggap terpakai.")
+    flash("Goal dihapus. Dana yang telah dialokasikan dianggap terpakai.", "danger")
     return redirect(url_for("savings_page"))
 
 # Export (Excel / PDF)
@@ -1565,7 +1616,7 @@ def upload_csv():
             """, (current_user.id, r["date"], r["type"], cat_id,
                   float(r["amount"]), r["source_or_payee"], r["account"], r["notes"]))
 
-    flash(f"Impor {len(df)} baris berhasil.")
+    flash(f"Impor {len(df)} baris berhasil.", "success")
     return redirect(url_for("dashboard"))
 
 # ---- Favorites API ----
