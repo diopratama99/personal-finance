@@ -136,23 +136,7 @@ input[type="password"]::-ms-clear{ display:none; }
   background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255,255,255,.9)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
-/* Scrollable chips untuk aksi cepat di HP */
-.chips-scroll{
-  display:flex; gap:.5rem; overflow-x:auto; padding:.25rem .25rem .5rem;
-  scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;
-}
-.chip{
-  flex:0 0 auto; scroll-snap-align:center;
-  border-radius:999px; border:1px solid var(--glass-border, rgba(255,255,255,.35));
-  background:var(--card, rgba(255,255,255,.7));
-  padding:.55rem .9rem; text-decoration:none; color:var(--text,#0b2239);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 8px 22px rgba(12,18,28,.06);
-  white-space:nowrap;
-}
-.chip:active{ transform:translateY(1px) }
-.chip-primary{ background:#fff; border-color:#fff; color:#0b2239; font-weight:600 }
-.chip-primary-outline{ background:transparent; border-color:#fff; color:#fff }
+/* Chips: tersisa definisi lengkap di bagian bawah file */
 
 /* Card & form lebih rapat di HP */
 @media (max-width: 576px){
@@ -224,24 +208,63 @@ body { font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Ar
 .equal-row .card-soft{ height:100%; }
 @media (max-width:576px){ .chart-box{ height:300px; } }
 
-/* hide quick chips everywhere */
-.chips-scroll { display: none !important; }
+/* Tampilkan chips hanya di mobile; sembunyikan di layar besar */
+@media (max-width: 576px){ .chips-scroll{ display:none !important; } }
+@media (min-width: 577px){ .chips-scroll{ display:none !important; } }
+
+/* iPad/tablet tweaks (768-1024px) */
+@media (min-width: 768px) and (max-width: 991.98px){
+  /* Lebarkan offcanvas sedikit untuk jempol, tapi tetap kompak */
+  .offcanvas-theme{ width: 360px; }
+  /* Filter grid membungkus lebih rapi */
+  .filter-grid .col-auto{ flex: 0 0 auto; }
+  .filter-grid{ row-gap: .5rem; }
+  .chart-box{ height: 320px; }
+}
+
+/* Small phone tightenings */
+@media (max-width: 400px){
+  .card-soft{ padding:14px; border-radius:16px; }
+  .navbar .btn{ padding:.3rem .7rem; }
+  .table-stacked tbody td{ padding:.55rem .75rem; }
+}
+
+/* Offcanvas width default (via CSS variable agar menang di Bootstrap) */
+.offcanvas-theme{ --bs-offcanvas-width: min(86vw, 340px); }
+/* Mobile: set jadi 75% layar */
+@media (max-width: 576px){ .offcanvas-theme{ --bs-offcanvas-width: 75vw !important; } }
+/* Tablet kecil: sedikit lebih lebar dari mobile */
+@media (min-width: 577px) and (max-width: 767.98px){ .offcanvas-theme{ --bs-offcanvas-width: 320px; } }
 
 /* ==== Offcanvas themed – GREEN to match navbar ==== */
 .offcanvas-theme{
-  /* gunakan warna dasar hijau dari variabel --bg */
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--bg) 95%, #fff 5%),
-      color-mix(in srgb, var(--bg) 90%, #000 10%)
-    );
-  /* fallback untuk browser tanpa color-mix */
-  background:
-    linear-gradient(180deg, rgba(15,81,50,.97), rgba(15,81,50,.93));
+  /* 50% opacity; match navbar success green */
+  /* Prefer Bootstrap var if available */
+  background: linear-gradient(180deg, rgba(var(--bs-success-rgb, 21,115,71), .5), rgba(var(--bs-success-rgb, 21,115,71), .5));
   border-right: 1px solid rgba(255,255,255,.18);
   color:#eaf6ef;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* Logout button style inside offcanvas: red fill 50% + white text */
+.offcanvas-theme .btn-outline-danger{
+  color:#fff;
+  background: rgba(220,53,69,.5);           /* Bootstrap danger rgb with 50% opacity */
+  border-color: rgba(220,53,69,.8);
+}
+.offcanvas-theme .btn-outline-danger:hover,
+.offcanvas-theme .btn-outline-danger:focus{
+  color:#fff;
+  background: rgba(220,53,69,.65);
+  border-color: rgba(220,53,69,.9);
+}
+
+/* ===== Mobile full-bleed tweaks for cards/grids ===== */
+@media (max-width: 576px){
+  main.container{ padding-left: 10px; padding-right: 10px; }
+  .row.g-3{ --bs-gutter-x: .6rem; --bs-gutter-y: .8rem; }
+  .row.g-4{ --bs-gutter-x: .6rem; --bs-gutter-y: 1rem; }
 }
 .offcanvas-theme .offcanvas-title{ font-weight:700; letter-spacing:.2px }
 .offcanvas-theme .btn-close{ filter: invert(1) grayscale(100%); opacity:.9 }
@@ -284,6 +307,18 @@ body { font-family: "Montserrat", system-ui, -apple-system, Segoe UI, Roboto, Ar
   --bs-backdrop-opacity: .45;
 }
 
+/* Greeting box in offcanvas */
+.offcanvas-theme .greet-box{
+  border-radius: 18px;
+  padding: .75rem 1rem;
+  background: rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.22);
+}
+.offcanvas-theme .greet-box .greet-title{
+  font-weight: 800;
+  font-size: 1.1rem; /* slightly larger */
+}
+
 /* ==== Page transition (enter/leave) ==== */
 main{ opacity:0; transform: translateY(8px); }
 main.page-enter{ opacity:1; transform:none; transition:opacity .35s ease, transform .35s ease; }
@@ -296,6 +331,13 @@ body.page-leave main{ opacity:0; transform: translateY(6px); transition:opacity 
 @media (min-width: 768px){ .sisa-card .sisa-amount{ font-size:3.2rem; } }
 .sisa-card .sisa-actions{ margin-top:.2rem; }
 .sisa-card .sisa-actions .btn{ border-radius:14px; padding:.6rem 1rem; }
+/* Mobile: pastikan tombol memenuhi lebar card dan rapih */
+@media (max-width: 576px){
+  .sisa-card{ padding: 14px 12px; }
+  .sisa-card .sisa-amount{ font-size: 1.9rem; }
+  .sisa-card .sisa-actions{ width:100%; display:grid !important; grid-template-columns:1fr; gap:.6rem; }
+  .sisa-card .sisa-actions .btn{ width:100%; }
+}
 
 /* Reusable section title (near-black, a bit larger) */
 .muted-title{ color: var(--text); color: color-mix(in srgb, var(--text) 90%, #000 10%); font-weight:600; letter-spacing:.01em; font-size:1.05rem; }
@@ -310,26 +352,58 @@ html[data-theme="dark"] .muted-title{ color: var(--text); }
   .table-stacked tbody tr {
     display: block;
     border: 1px solid rgba(0,0,0,.08);
-    border-radius: 12px;
-    margin-bottom: .75rem;
+    border-radius: 16px;
+    margin-bottom: .9rem;
     overflow: hidden;
     background: var(--card);
+    box-shadow: 0 6px 18px rgba(12,18,28,.06);
   }
   .table-stacked tbody td {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: .75rem;
-    padding: .6rem .9rem;
-    border-top: 1px solid rgba(0,0,0,.04);
+    gap: .65rem;
+    padding: .65rem .95rem;
+    border-top: 1px solid rgba(0,0,0,.06);
+    font-size: .95rem;
   }
   .table-stacked tbody td:first-child { border-top: 0; }
   .table-stacked tbody td::before {
     content: attr(data-label);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--muted);
   }
-  .table-stacked tbody td.action-cell { justify-content: flex-end; }
+  .table-stacked tbody td.action-cell { justify-content: flex-end; padding-top: .75rem; padding-bottom: .75rem; }
+  .table-stacked tbody td.action-cell .btn{ border-radius: 12px; padding: .35rem .8rem; }
+}
+
+/* ===== iPad/tablet: render table as 2-column cards ===== */
+@media (min-width: 576px) and (max-width: 991.98px){
+  .table-stacked thead { display: none; }
+  .table-stacked{ display:block; width:100%; }
+  .table-stacked tbody{ display:grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+  .table-stacked tbody tr{
+    display:block;
+    border:1px solid rgba(0,0,0,.08);
+    border-radius:16px;
+    background: var(--card);
+    box-shadow: 0 6px 18px rgba(12,18,28,.06);
+    overflow:hidden;
+  }
+  .table-stacked tbody td{
+    display:flex; justify-content:space-between; align-items:center;
+    gap:.65rem; padding:.65rem .95rem; border-top:1px solid rgba(0,0,0,.06);
+    font-size:.96rem;
+  }
+  .table-stacked tbody td:first-child{ border-top:0; }
+  .table-stacked tbody td::before{ content:attr(data-label); font-weight:700; color:var(--muted); }
+  .table-stacked tbody td.action-cell{ justify-content:flex-end; padding-top:.75rem; padding-bottom:.75rem; }
+  .table-stacked tbody td.action-cell .btn{ border-radius:12px; padding:.35rem .8rem; }
+
+  /* Compact variant: only show Tanggal, Jenis, Kategori, Nominal */
+  .table-stacked.stack-compact tbody td[data-label="Metode"],
+  .table-stacked.stack-compact tbody td[data-label="Keterangan"],
+  .table-stacked.stack-compact tbody td[data-label="Catatan"]{ display:none !important; }
 }
 
 /* ===== Filter actions (desktop polish) ===== */

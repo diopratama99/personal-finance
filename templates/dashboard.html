@@ -43,7 +43,7 @@
       <div class="text-muted small mt-2">Periode: {{ start }} s/d {{ end }}</div>
     </div>
   </div>
-  <div class="col-lg-7">
+  <div class="col-lg-7 d-none d-md-block">
     <div class="card-soft h-100">
       <div class="muted-title mb-1">Ayo tambah lagi Tabunganmu</div>
       <div class="d-flex justify-content-between align-items-center mb-2">
@@ -71,7 +71,7 @@
 </div>
 
 {% if budgets %}
-<div class="card-soft mb-3" data-aos="fade-up">
+<div class="card-soft mb-3 d-none d-md-block" data-aos="fade-up">
   <div class="muted-title mb-2">Budget Bulan {{ start[:7]|month_indo_dash }}</div>
   {% if over_budgets and over_budgets|length > 0 %}
     <div class="alert alert-danger py-2">Anda telah melebihi budget pada kategori: 
@@ -97,14 +97,70 @@
 </div>
 {% endif %}
 
+<!-- Mobile-only: Goals + Budgets in one row (2 cards) -->
+<div class="d-md-none">
+  <div class="row g-2 mb-3">
+    <!-- Goals mini card -->
+    <div class="col-6">
+      <div class="card-soft h-100 d-flex flex-column">
+        <div class="muted-title mb-1">Goals Aktif</div>
+        {% if active_goals %}
+          {% for g in active_goals[:2] %}
+            {% set pct = (g.allocated / g.target_amount * 100) if g.target_amount else 0 %}
+            <div class="mb-1">
+              <div class="small text-muted text-truncate">{{ g.name }}</div>
+              <div class="progress budget" style="height:10px">
+                <div class="progress-bar {{ 'bg-success' if pct<=100 else 'bg-danger' }}" style="width: {{ [pct,150]|min }}%"></div>
+              </div>
+              <div class="small text-muted text-end">{{ g.target_amount|money }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted small">Belum ada.</div>
+        {% endif %}
+        <a class="btn btn-light btn-sm mt-auto w-100" href="{{ url_for('savings_page') }}">Kelola</a>
+      </div>
+    </div>
+
+    <!-- Budgets mini card -->
+    <div class="col-6">
+      <div class="card-soft h-100 d-flex flex-column">
+        <div class="muted-title mb-1">Budget {{ start[:7]|month_name_indo }}</div>
+        {% if budgets %}
+          {% for b in budgets[:2] %}
+            {% set pct = (100 * b.spent / b.amount) if b.amount else 0 %}
+            <div class="mb-1">
+              <div class="small text-muted text-truncate">{{ b.category }}</div>
+              <div class="progress budget" style="height:10px">
+                <div class="progress-bar {{ 'bg-danger' if pct>100 else 'bg-success' }}" style="width: {{ [pct,150]|min }}%"></div>
+              </div>
+              <div class="small text-muted text-end">{{ b.amount|money }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted small">Belum ada.</div>
+        {% endif %}
+        <a class="btn btn-light btn-sm mt-auto w-100" href="{{ url_for('budgets_page', month=start[:7]) }}">Kelola</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- RINGKASAN & GRAFIK -->
 <div class="row g-3 align-items-stretch equal-row">
-  <div class="col-lg-4">
+  <div class="col-lg-8 order-1">
+    <div class="card-soft h-100">
+      <div class="muted-title mb-3">Grafik Pengeluaran per Kategori</div>
+      <div class="chart-box" id="expenseChartBox">
+        <canvas id="expenseChart" aria-label="Grafik pengeluaran per kategori" role="img"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4 order-2">
     <div class="card-soft h-100">
       <div class="muted-title">Ringkasan Periode</div>
-      <div class="display-6 fw-semibold mt-2 count-up" data-target="{{ summary.income }}">Pendapatan: {{ summary.income|money }}</div>
+      <div class="display-6 fw-semibold text-success mt-2 count-up" data-target="{{ summary.income }}">Pendapatan: {{ summary.income|money }}</div>
       <div class="display-6 fw-semibold text-danger count-up" data-target="{{ summary.expense }}">Pengeluaran: {{ summary.expense|money }}</div>
-      <div class="display-6 fw-semibold {{ 'text-success' if summary.net>=0 else 'text-danger' }} count-up" data-target="{{ summary.net }}">Saldo: {{ summary.net|money }}</div>
 
       <hr>
       <h6 class="text-muted">Statistik Pengeluaran</h6>
@@ -118,22 +174,13 @@
       {% endif %}
     </div>
   </div>
-
-  <div class="col-lg-8">
-    <div class="card-soft h-100">
-      <div class="muted-title mb-3">Grafik Pengeluaran per Kategori</div>
-      <div class="chart-box" id="expenseChartBox">
-        <canvas id="expenseChart" aria-label="Grafik pengeluaran per kategori" role="img"></canvas>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- 10 TRANSAKSI TERAKHIR -->
 <div class="card-soft mt-3">
   <div class="muted-title mb-3">10 Transaksi Terakhir</div>
   <div class="table-responsive">
-    <table class="table table-hover align-middle table-stacked">
+    <table class="table table-hover align-middle table-stacked stack-compact">
       <thead>
         <tr>
           <th scope="col">Tanggal</th>

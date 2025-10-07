@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card-soft" data-aos="fade-up">
+  <h5 class="mb-3">Saldo Akun</h5>
+
+  <form class="row gy-2 gx-2 align-items-end mb-3" method="get">
+    <div class="col-auto">
+      <label class="form-label mb-0">Bulan</label>
+      <input type="month" class="form-control" name="month" value="{{ month }}">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary">Tampilkan</button>
+    </div>
+  </form>
+
+  <!-- Stat cards saldo per metode (bulan) -->
+  <div class="row g-3 mb-3">
+    {% for b in balances %}
+      <div class="col-12 col-md-4">
+        <div class="card-soft h-100 text-center">
+          {% set icon = 'bi-bank' if b.acc=='Transfer' else ('bi-cash-coin' if b.acc=='Tunai' else 'bi-wallet2') %}
+          <div class="mb-1"><i class="bi {{ icon }} fs-3" style="color:#157347"></i></div>
+          <div class="text-muted small">{{ b.label }}</div>
+          <div class="display-6 fw-semibold {{ 'text-success' if (b.saldo or 0) >= 0 else 'text-danger' }}">{{ b.saldo|money }}</div>
+          <div class="text-muted small">Bulan {{ month|month_indo_dash }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-4 col-md-6 order-lg-3">
+      <div class="p-3 border rounded bg-light h-100">
+        <div class="fw-semibold mb-2">Top Up E-Wallet</div>
+        <form method="post" action="{{ url_for('account_transfer') }}" class="row gy-2 gx-2 align-items-end">
+          <input type="hidden" name="to_account" value="E-Wallet">
+          <input type="hidden" name="month" value="{{ month }}">
+          <input type="hidden" name="next" value="{{ url_for('accounts_page', month=month) }}">
+          <div class="col-12">
+            <label class="form-label mb-1">Sumber Dana</label>
+            <select name="from_account" class="form-select" required>
+              <option value="" disabled selected>— pilih sumber —</option>
+              <option value="Transfer">Rekening</option>
+              <option value="Tunai">Tunai</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label mb-1">Jumlah</label>
+            <input type="number" class="form-control" name="amount" min="500" step="500" placeholder="cth: 150000" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label mb-1">Biaya admin (opsional)</label>
+            <input type="number" class="form-control" name="admin_fee" min="0" step="500" placeholder="cth: 1500">
+          </div>
+          <div class="col-12">
+            <label class="form-label mb-1">Catatan (opsional)</label>
+            <input type="text" class="form-control" name="note" placeholder="opsional">
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-outline-primary">Top Up E-Wallet</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6 order-lg-2">
+      <div class="p-3 border rounded bg-light h-100">
+        <div class="fw-semibold mb-2">Tarik Tunai</div>
+        <form method="post" action="{{ url_for('account_transfer') }}" class="row gy-2 gx-2 align-items-end">
+          <input type="hidden" name="to_account" value="Tunai">
+          <input type="hidden" name="month" value="{{ month }}">
+          <input type="hidden" name="next" value="{{ url_for('accounts_page', month=month) }}">
+          <div class="col-12">
+            <label class="form-label mb-1">Sumber Dana</label>
+            <select name="from_account" class="form-select" required>
+              <option value="" disabled selected>— pilih sumber —</option>
+              <option value="Transfer">Rekening</option>
+              <option value="E-Wallet">E-Wallet</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label mb-1">Jumlah</label>
+            <input type="number" class="form-control" name="amount" min="500" step="500" placeholder="cth: 200000" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label mb-1">Biaya admin (opsional)</label>
+            <input type="number" class="form-control" name="admin_fee" min="0" step="500" placeholder="cth: 1500">
+          </div>
+          <div class="col-12">
+            <label class="form-label mb-1">Catatan (opsional)</label>
+            <input type="text" class="form-control" name="note" placeholder="opsional">
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-outline-secondary">Tarik Tunai</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Top Up Rekening (dari Tunai / E-Wallet) -->
+    <div class="col-lg-4 col-md-6 order-lg-1">
+      <div class="p-3 border rounded bg-light h-100">
+        <div class="fw-semibold mb-2">Top Up Rekening</div>
+        <form method="post" action="{{ url_for('account_transfer') }}" class="row gy-2 gx-2 align-items-end">
+          <input type="hidden" name="to_account" value="Transfer">
+          <input type="hidden" name="month" value="{{ month }}">
+          <input type="hidden" name="next" value="{{ url_for('accounts_page', month=month) }}">
+          <div class="col-12">
+            <label class="form-label mb-1">Sumber Dana</label>
+            <select name="from_account" class="form-select" required>
+              <option value="" disabled selected>— pilih sumber —</option>
+              <option value="E-Wallet">E-Wallet</option>
+              <option value="Tunai">Tunai</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label mb-1">Jumlah</label>
+            <input type="number" class="form-control" name="amount" min="500" step="500" placeholder="cth: 150000" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label mb-1">Biaya admin (opsional)</label>
+            <input type="number" class="form-control" name="admin_fee" min="0" step="500" placeholder="cth: 1500">
+          </div>
+          <div class="col-12">
+            <label class="form-label mb-1">Catatan (opsional)</label>
+            <input type="text" class="form-control" name="note" placeholder="opsional">
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-outline-primary">Top Up Rekening</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card-soft mt-3" data-aos="fade-up">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h6 class="m-0 text-muted">Riwayat Mutasi ({{ month|month_indo_dash }})</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle table-stacked">
+      <thead>
+        <tr>
+          <th>Tanggal</th>
+          <th>Dari</th>
+          <th>Ke</th>
+          <th>Jumlah</th>
+          <th>Catatan</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in transfers %}
+          <tr>
+            <td data-label="Tanggal">{{ r.date }}</td>
+            <td data-label="Dari">{{ r.from_account }}</td>
+            <td data-label="Ke">{{ r.to_account }}</td>
+            <td data-label="Jumlah">{{ r.amount|money }}</td>
+            <td data-label="Catatan">{{ r.note or '-' }}</td>
+            <td class="text-nowrap action-cell">
+              <form method="post" action="{{ url_for('account_transfer_delete', transfer_id=r.id) }}" onsubmit="return confirm('Hapus mutasi ini?')">
+                <input type="hidden" name="next" value="{{ url_for('accounts_page', month=month) }}">
+                <button class="btn btn-sm btn-outline-danger">Hapus</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        {% if not transfers %}
+          <tr>
+            <td colspan="6" class="text-center text-muted">Belum ada mutasi.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+ </div>
+{% endblock %}

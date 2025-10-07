@@ -41,13 +41,10 @@
     <!-- NAVBAR -->
     {% set ep = request.endpoint %} {% if ep not in ['login','register'] %}
     <nav class="navbar navbar-dark bg-success sticky-top shadow-sm">
-      <div class="container">
-        <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}"
-          >Temanku</a
-        >
-        <!-- Burger -->
+      <div class="container d-flex align-items-center">
+        <!-- Burger di kiri -->
         <button
-          class="navbar-toggler"
+          class="navbar-toggler me-2"
           type="button"
           data-bs-toggle="offcanvas"
           data-bs-target="#mainMenu"
@@ -56,6 +53,9 @@
         >
           <span class="navbar-toggler-icon"></span>
         </button>
+
+        <!-- Brand di kanan -->
+        <a class="navbar-brand fw-bold ms-auto" href="{{ url_for('dashboard') }}">Temanku</a>
       </div>
     </nav>
     {% endif %}
@@ -79,6 +79,11 @@
 
       <div class="offcanvas-body d-flex flex-column gap-3">
         {% if current_user.is_authenticated %}
+        <!-- Greeting block -->
+        <div class="greet-box">
+          <div class="greet-title">Halo, {{ current_user.name }}</div>
+          <div class="small" style="opacity:.9">Semangat cari uangnya ya!</div>
+        </div>
         <nav class="list-group list-group-flush">
           <!-- 1) Dashboard -->
           <a
@@ -88,7 +93,15 @@
             🏠 Dashboard
           </a>
 
-          <!-- 2) Tambah transaksi (setelah Dashboard) -->
+          <!-- 2) Saldo Akun -->
+          <a
+            class="list-group-item menu-link {{ 'active' if ep=='accounts_page' else '' }}"
+            href="{{ url_for('accounts_page') }}"
+          >
+            ⚖️ Saldo Akun
+          </a>
+
+          <!-- 3) Tambah transaksi -->
           <a
             class="list-group-item menu-link {{ 'active' if ep=='add_form' else '' }}"
             href="{{ url_for('add_form') }}"
@@ -96,7 +109,7 @@
             ➕ Tambah transaksi
           </a>
 
-          <!-- 3) Menu lainnya -->
+          <!-- 4) Menu lainnya -->
           <a
             class="list-group-item menu-link {{ 'active' if ep=='history' else '' }}"
             href="{{ url_for('history') }}"

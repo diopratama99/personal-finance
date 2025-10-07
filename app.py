@@ -156,6 +156,36 @@ def ensure_savings_tables():
 
 ensure_savings_tables()
 
+# === Account transfers (mutasi antar akun) ===
+def ensure_account_transfers_table():
+    with db() as con:
+        con.execute(
+            """
+            CREATE TABLE IF NOT EXISTS account_transfers(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                from_account TEXT NOT NULL CHECK(from_account IN ('Transfer','Tunai','E-Wallet')),
+                to_account   TEXT NOT NULL CHECK(to_account   IN ('Transfer','Tunai','E-Wallet')),
+                amount REAL NOT NULL,
+                note TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+            """
+        )
+
+        # Migration: add fee_transaction_id if missing (link to transactions)
+        try:
+            cols = con.execute("PRAGMA table_info(account_transfers)").fetchall()
+            col_names = {c[1] for c in cols}
+            if "fee_transaction_id" not in col_names:
+                con.execute("ALTER TABLE account_transfers ADD COLUMN fee_transaction_id INTEGER")
+        except Exception:
+            pass
+
+ensure_account_transfers_table()
+
 # Pastikan kolom emoji pada categories ada (untuk ikon kategori)
 def ensure_categories_emoji_column():
     with db() as con:
@@ -295,6 +325,19 @@ app.jinja_env.filters["type_label"] = type_label
 
 VALID_PAYMENTS = {"Transfer", "E-Wallet", "Tunai"}
 
+# Only month name (Indonesia) from YYYY-MM
+def month_name_indo(ym: str) -> str:
+    try:
+        if not ym or len(ym) < 7 or "-" not in ym:
+            return ym
+        _, m = ym.split("-")[:2]
+        mi = int(m)
+        return _MONTHS_ID[mi] if 1 <= mi <= 12 else m
+    except Exception:
+        return ym
+
+app.jinja_env.filters["month_name_indo"] = month_name_indo
+
 def valid_iso_date(s: str) -> bool:
     try:
         date.fromisoformat(s)
@@ -310,6 +353,115 @@ def normalize_date_range(start: str | None, end: str | None):
     if s > e:
         s, e = e, s
     return s, e
+
+
+# === All-time account balances helper ===
+def account_balances_alltime(user_id: int):
+    """Compute all-time balances per payment account using transactions and
+    internal account_transfers (topup/tarik tunai)."""
+    with db() as con:
+        # From transactions: income adds, expense subtracts
+        trx_rows = con.execute(
+            """
+            SELECT account AS acc,
+                   SUM(CASE WHEN type='income' THEN amount ELSE -amount END) AS saldo
+            FROM transactions
+            WHERE user_id=? AND account IN ('Transfer','Tunai','E-Wallet')
+            GROUP BY account
+            """,
+            (user_id,)
+        ).fetchall()
+
+        base = {'Transfer': 0.0, 'Tunai': 0.0, 'E-Wallet': 0.0}
+        for r in trx_rows:
+            if r['acc'] in base:
+                base[r['acc']] = float(r['saldo'] or 0)
+
+        # Internal transfers
+        inc_rows = con.execute(
+            """
+            SELECT to_account AS acc, SUM(amount) AS s
+            FROM account_transfers WHERE user_id=? GROUP BY to_account
+            """,
+            (user_id,)
+        ).fetchall()
+        out_rows = con.execute(
+            """
+            SELECT from_account AS acc, SUM(amount) AS s
+            FROM account_transfers WHERE user_id=? GROUP BY from_account
+            """,
+            (user_id,)
+        ).fetchall()
+
+        for r in inc_rows:
+            if r['acc'] in base:
+                base[r['acc']] += float(r['s'] or 0)
+        for r in out_rows:
+            if r['acc'] in base:
+                base[r['acc']] -= float(r['s'] or 0)
+
+    def _label(a: str) -> str:
+        return 'Rekening' if a == 'Transfer' else ('E-Wallet' if a == 'E-Wallet' else 'Tunai')
+
+    return [{
+        'acc': k,
+        'label': _label(k),
+        'saldo': v,
+    } for k, v in base.items()]
+
+
+def account_balances_month(user_id: int, ym: str):
+    """Compute balances per account limited to given month (YYYY-MM)."""
+    with db() as con:
+        trx_rows = con.execute(
+            """
+            SELECT account AS acc,
+                   SUM(CASE WHEN type='income' THEN amount ELSE -amount END) AS saldo
+            FROM transactions
+            WHERE user_id=? AND account IN ('Transfer','Tunai','E-Wallet')
+              AND substr(date,1,7)=?
+            GROUP BY account
+            """,
+            (user_id, ym)
+        ).fetchall()
+
+        base = {'Transfer': 0.0, 'Tunai': 0.0, 'E-Wallet': 0.0}
+        for r in trx_rows:
+            if r['acc'] in base:
+                base[r['acc']] = float(r['saldo'] or 0)
+
+        inc_rows = con.execute(
+            """
+            SELECT to_account AS acc, SUM(amount) AS s
+            FROM account_transfers WHERE user_id=? AND substr(date,1,7)=?
+            GROUP BY to_account
+            """,
+            (user_id, ym)
+        ).fetchall()
+        out_rows = con.execute(
+            """
+            SELECT from_account AS acc, SUM(amount) AS s
+            FROM account_transfers WHERE user_id=? AND substr(date,1,7)=?
+            GROUP BY from_account
+            """,
+            (user_id, ym)
+        ).fetchall()
+
+        for r in inc_rows:
+            if r['acc'] in base:
+                base[r['acc']] += float(r['s'] or 0)
+        for r in out_rows:
+            if r['acc'] in base:
+                base[r['acc']] -= float(r['s'] or 0)
+
+    def _label(a: str) -> str:
+        return 'Rekening' if a == 'Transfer' else ('E-Wallet' if a == 'E-Wallet' else 'Tunai')
+
+    return [{
+        'acc': k,
+        'label': _label(k),
+        'saldo': v,
+    } for k, v in base.items()]
 
 
 # =============================================================================
@@ -470,6 +622,89 @@ def dashboard():
 
 
 # =============================================================================
+# Accounts (Saldo per Metode)
+# =============================================================================
+
+@app.get("/accounts")
+@login_required
+def accounts_page():
+    month = request.args.get("month") or date.today().strftime("%Y-%m")
+    balances = account_balances_month(current_user.id, month)
+    with db() as con:
+        rows = con.execute(
+            """
+            SELECT id, date, from_account, to_account, amount, note
+            FROM account_transfers
+            WHERE user_id=? AND substr(date,1,7)=?
+            ORDER BY id DESC
+            LIMIT 20
+            """,
+            (current_user.id, month)
+        ).fetchall()
+    return render_template(
+        "accounts.html",
+        balances=balances,
+        month=month,
+        transfers=[dict(r) for r in rows],
+        title="Saldo Akun",
+    )
+
+
+@app.post("/account-transfer/<int:transfer_id>/delete")
+@login_required
+def account_transfer_delete(transfer_id: int):
+    next_url = request.form.get("next") or url_for("accounts_page")
+    with db() as con:
+        tr = con.execute(
+            "SELECT * FROM account_transfers WHERE id=? AND user_id=?",
+            (transfer_id, current_user.id)
+        ).fetchone()
+        if not tr:
+            flash("Mutasi tidak ditemukan.")
+            return redirect(next_url)
+
+        fee_tx_id = tr["fee_transaction_id"] if "fee_transaction_id" in tr.keys() else None
+
+        # Delete linked admin fee transaction if any; fallback: attempt to find it
+        fee_deleted = False
+        if fee_tx_id:
+            con.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (fee_tx_id, current_user.id))
+            fee_deleted = True
+        else:
+            # Fallback heuristic: match by date/account/category/name
+            # Build expected description
+            to_acc = tr["to_account"]; from_acc = tr["from_account"]
+            if to_acc == 'E-Wallet':
+                desc = 'Biaya Admin Top Up E-Wallet'
+            elif to_acc == 'Tunai':
+                desc = 'Biaya Admin Tarik Tunai'
+            elif to_acc == 'Transfer':
+                desc = 'Biaya Admin Top Up Rekening'
+            else:
+                desc = 'Biaya Admin Mutasi Akun'
+
+            row = con.execute(
+                """
+                SELECT t.id FROM transactions t
+                JOIN categories c ON c.id=t.category_id
+                WHERE t.user_id=? AND t.type='expense' AND c.name='Biaya Admin'
+                  AND t.date=? AND t.account=? AND t.source_or_payee=?
+                ORDER BY t.id DESC LIMIT 1
+                """,
+                (current_user.id, tr["date"], tr["from_account"], desc)
+            ).fetchone()
+            if row:
+                con.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (row["id"], current_user.id))
+                fee_deleted = True
+
+        # Finally, remove transfer itself
+        con.execute("DELETE FROM account_transfers WHERE id=? AND user_id=?", (transfer_id, current_user.id))
+
+    flash("Mutasi dihapus." + (" Biaya admin ikut dihapus." if fee_deleted else ""), "danger")
+    return redirect(next_url)
+
+
+# =============================================================================
 # Import/Export page (UI)
 # =============================================================================
 
@@ -519,6 +754,7 @@ def add_form():
         default_type=t or "",
         categories=cats,
         favorites=[dict(x) for x in favs],
+        balances_account=account_balances_alltime(current_user.id),
         title="Tambah Transaksi"
     )
 
@@ -589,6 +825,106 @@ def add_submit():
     flash("Transaksi tersimpan.", "success")
     return redirect(url_for("history"))
 
+
+@app.post("/account-transfer")
+@login_required
+def account_transfer():
+    """Mutasi internal saldo antar metode pembayaran (tidak memengaruhi
+    income/expense). Contoh: Top Up E-Wallet, Tarik Tunai.
+    """
+    from_acc = request.form.get("from_account")
+    to_acc   = request.form.get("to_account")
+    amount_s = (request.form.get("amount") or "").strip()
+    note     = (request.form.get("note") or "").strip()
+    admin_fee_s = (request.form.get("admin_fee") or "").strip()
+    month_param = (request.form.get("month") or "").strip() or date.today().strftime("%Y-%m")
+    next_url = request.form.get("next") or url_for("add_form")
+
+    if from_acc not in VALID_PAYMENTS or to_acc not in VALID_PAYMENTS or from_acc == to_acc:
+        flash("Metode asal/tujuan tidak valid.")
+        return redirect(next_url)
+
+    try:
+        amt = float(amount_s)
+        if amt <= 0:
+            raise ValueError
+    except Exception:
+        flash("Nominal mutasi harus > 0.")
+        return redirect(next_url)
+
+    # Parse biaya admin (untuk validasi saldo & pencatatan)
+    fee_val = 0.0
+    if admin_fee_s:
+        try:
+            fee_val = float(admin_fee_s)
+            if fee_val < 0:
+                fee_val = 0.0
+        except Exception:
+            fee_val = 0.0
+
+    # Cek saldo sumber cukup untuk jumlah + biaya admin pada bulan terkait
+    try:
+        bals = account_balances_month(current_user.id, month_param)
+        src = next((b for b in bals if b.get('acc') == from_acc), None)
+        available = float(src.get('saldo') if src else 0)
+    except Exception:
+        available = 0.0
+    needed = amt + (fee_val or 0.0)
+    if available < needed:
+        flash(f"Mutasi gagal: saldo {from_acc} tidak mencukupi (tersedia {money(available)}).", "danger")
+        return redirect(next_url)
+
+    with db() as con:
+        cur = con.execute(
+            """
+            INSERT INTO account_transfers(user_id,date,from_account,to_account,amount,note)
+            VALUES (?,?,?,?,?,?)
+            """,
+            (current_user.id, date.today().isoformat(), from_acc, to_acc, amt, note or None),
+        )
+        transfer_id = getattr(cur, 'lastrowid', None)
+
+        # Optional: catat biaya admin sebagai expense agar muncul di History
+        # fee_val sudah dihitung di atas
+        if fee_val and fee_val > 0:
+            # Pastikan kategori 'Biaya Admin' ada
+            row = con.execute(
+                "SELECT id FROM categories WHERE user_id=? AND type='expense' AND name=?",
+                (current_user.id, 'Biaya Admin')
+            ).fetchone()
+            if not row:
+                con.execute(
+                    "INSERT INTO categories(user_id,type,name) VALUES (?,?,?)",
+                    (current_user.id, 'expense', 'Biaya Admin')
+                )
+                row = con.execute(
+                    "SELECT id FROM categories WHERE user_id=? AND type='expense' AND name=?",
+                    (current_user.id, 'Biaya Admin')
+                ).fetchone()
+            cat_id = row["id"]
+            if to_acc == 'E-Wallet':
+                desc = 'Biaya Admin Top Up E-Wallet'
+            elif to_acc == 'Tunai':
+                desc = 'Biaya Admin Tarik Tunai'
+            else:
+                desc = 'Biaya Admin Top Up Rekening' if to_acc == 'Transfer' else 'Biaya Admin Mutasi Akun'
+            tx_cur = con.execute(
+                """
+                INSERT INTO transactions(user_id,date,type,category_id,amount,source_or_payee,account,notes)
+                VALUES (?,?,?,?,?,?,?,?)
+                """,
+                (current_user.id, date.today().isoformat(), 'expense', cat_id, fee_val, desc, from_acc, (note or None))
+            )
+            fee_tx_id = getattr(tx_cur, 'lastrowid', None)
+            if transfer_id and fee_tx_id:
+                con.execute(
+                    "UPDATE account_transfers SET fee_transaction_id=? WHERE id=? AND user_id=?",
+                    (fee_tx_id, transfer_id, current_user.id)
+                )
+
+    flash("Mutasi saldo berhasil.", "success")
+    return redirect(next_url)
+
 @app.get("/edit/<int:trx_id>")
 @login_required
 def edit_form(trx_id):
@@ -605,7 +941,13 @@ def edit_form(trx_id):
         cats = con.execute("""
             SELECT id, name FROM categories WHERE user_id=? AND type=? ORDER BY name
         """, (current_user.id, trx["type"])).fetchall()
-    return render_template("edit.html", trx=dict(trx), categories=[dict(c) for c in cats], title="Edit Transaksi")
+    return render_template(
+        "edit.html",
+        trx=dict(trx),
+        categories=[dict(c) for c in cats],
+        balances_account=account_balances_alltime(current_user.id),
+        title="Edit Transaksi"
+    )
 
 @app.post("/edit/<int:trx_id>")
 @login_required
@@ -1316,26 +1658,33 @@ def savings_goal_delete(goal_id):
         if not g:
             flash("Goal tidak ditemukan.")
             return redirect(url_for("savings_page"))
-        if not g["archived_at"]:
-            flash("Hanya goal yang sudah diarsipkan yang bisa dihapus.")
-            return redirect(url_for("savings_page"))
-        # Hitung total alokasi pada goal ini, lalu tandai sebagai konsumsi permanen
+
+        # Hitung total alokasi pada goal ini
         row = con.execute(
             "SELECT COALESCE(SUM(amount),0) AS t FROM savings_allocations WHERE user_id=? AND goal_id=?",
             (current_user.id, goal_id)
         ).fetchone()
-        consumed = float(row["t"] or 0)
-        if consumed > 0:
-            note = f"Hapus goal: {g['name']}"
-            con.execute(
-                "INSERT INTO savings_consumed(user_id,amount,note) VALUES (?,?,?)",
-                (current_user.id, consumed, note)
-            )
+        total_alloc = float(row["t"] or 0)
+
+        if g["archived_at"]:
+            # Perilaku lama: alokasi dianggap terpakai permanen
+            if total_alloc > 0:
+                note = f"Hapus goal: {g['name']}"
+                con.execute(
+                    "INSERT INTO savings_consumed(user_id,amount,note) VALUES (?,?,?)",
+                    (current_user.id, total_alloc, note)
+                )
+            flash_msg = "Goal dihapus. Dana yang telah dialokasikan dianggap terpakai."
+        else:
+            # Goal aktif: hapus goal dan semua alokasi tanpa mencatat konsumsi
+            # sehingga dana kembali ke saldo tabungan (pot mendapat kembali)
+            flash_msg = "Goal aktif dihapus. Dana alokasi dikembalikan ke saldo tabungan."
+
         # Hapus alokasi dan goal
         con.execute("DELETE FROM savings_allocations WHERE user_id=? AND goal_id=?", (current_user.id, goal_id))
         con.execute("DELETE FROM savings_goals WHERE id=? AND user_id=?", (goal_id, current_user.id))
 
-    flash("Goal dihapus. Dana yang telah dialokasikan dianggap terpakai.", "danger")
+    flash(flash_msg, "danger")
     return redirect(url_for("savings_page"))
 
 # Export (Excel / PDF)

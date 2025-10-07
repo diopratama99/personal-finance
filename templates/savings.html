@@ -236,6 +236,9 @@
                   </div>
                 </form>
                 {% endif %}
+                <form method="post" action="{{ url_for('savings_goal_delete', goal_id=g.id) }}" class="mt-2" onsubmit="return confirm('Hapus goal aktif ini? Dana alokasi akan dikembalikan ke saldo tabungan.');">
+                  <button class="btn btn-sm btn-outline-danger w-100">Hapus Goal</button>
+                </form>
               </div>
             </div>
             {% endfor %}
@@ -288,6 +291,9 @@
                         </div>
                       </form>
                     {% endif %}
+                    <form method="post" action="{{ url_for('savings_goal_delete', goal_id=g.id) }}" class="d-inline ms-1" onsubmit="return confirm('Hapus goal aktif ini? Dana alokasi akan dikembalikan ke saldo tabungan.');">
+                      <button class="btn btn-sm btn-outline-danger">Hapus</button>
+                    </form>
                   </td>
                 </tr>
                 {% endfor %}
